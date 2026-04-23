@@ -35,6 +35,16 @@ After the installer finishes, you can restart your Batocera. The interface will 
 
 ---
 
+## 🗑️ Uninstallation
+If you want to remove the dashboard, run:
+```bash
+cd /path/to/your/batocera-native/
+chmod +x uninstall.sh
+./uninstall.sh
+```
+
+---
+
 ## ✨ Features (Native Mode)
 - **Zero Latency**: Direct filesystem access (no SSH overhead).
 - **Auto-Discovery**: No IP or password needed.
