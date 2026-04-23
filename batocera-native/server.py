@@ -42,7 +42,7 @@ def health(): return jsonify({'status': 'ok', 'mode': 'native', 'version': VERSI
 
 @app.route('/api/update/check')
 def api_update_check():
-    remote_url = "https://raw.githubusercontent.com/DavidSchuchert/Batocera-Dashboard/main/version.txt"
+    remote_url = "https://raw.githubusercontent.com/DavidSchuchert/Batocera-WebDashboard-Pro/main/version.txt"
     try:
         import urllib.request
         with urllib.request.urlopen(remote_url, timeout=5) as response:

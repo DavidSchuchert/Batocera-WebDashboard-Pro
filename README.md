@@ -46,8 +46,8 @@ There are two ways to deploy this interface. Choose the one that fits your workf
 
 1. **Clone the Repo:**
    ```bash
-   git clone https://github.com/DavidSchuchert/Batocera-Dashboard.git
-   cd Batocera-Dashboard
+   git clone https://github.com/DavidSchuchert/Batocera-WebDashboard-Pro.git
+   cd Batocera-WebDashboard-Pro
    ```
 2. **Run:**
    ```bash
