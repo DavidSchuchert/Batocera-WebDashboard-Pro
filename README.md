@@ -76,3 +76,4 @@ MIT License. See [LICENSE](LICENSE) for details.
 ---
 
 *Created for the Batocera community by **DavidSchuchert** with ❤️.*
+ 

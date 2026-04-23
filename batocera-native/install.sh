@@ -56,17 +56,25 @@ fi
 # 4. Setup Autostart (custom.sh)
 echo -e "${YELLOW}[3/3] Configuring autostart (custom.sh)...${NC}"
 
-# Remove any old entries to avoid duplicates or wrong paths
-if [ -f "$CUSTOM_SH" ]; then
-    sed -i '/interface-pro\/server.py/d' "$CUSTOM_SH"
+# Ensure custom.sh exists and has a shebang
+if [ ! -f "$CUSTOM_SH" ]; then
+    echo "#!/bin/bash" > "$CUSTOM_SH"
 fi
 
+# Remove any old entries to avoid duplicates
+sed -i '/interface-pro\/server.py/d' "$CUSTOM_SH"
+
+# Add new entry with a small delay for network stability
 echo "" >> "$CUSTOM_SH"
-echo "# Start Batocera Interface PRO on boot" >> "$CUSTOM_SH"
-echo "$PYTHON_EXEC $INSTALL_DIR/server.py &" >> "$CUSTOM_SH"
+echo "# Start Batocera Interface PRO on boot (with 10s delay for network)" >> "$CUSTOM_SH"
+echo "(sleep 10; $PYTHON_EXEC $INSTALL_DIR/server.py) &" >> "$CUSTOM_SH"
 chmod +x "$CUSTOM_SH"
 
-echo -e "${GREEN}  -> Autostart linked successfully.${NC}"
+# IMPORTANT: Save changes to the overlay so they survive a reboot
+echo -e "${YELLOW}  -> Saving system overlay...${NC}"
+batocera-save-overlay &> /dev/null
+
+echo -e "${GREEN}  -> Autostart linked and saved successfully.${NC}"
 
 # --- Final Summary ---
 echo -e "\n${CYAN}===================================================="
@@ -74,19 +82,19 @@ echo -e "🎉  INSTALLATION COMPLETE - ALLES TUTTI! 🎉"
 echo -e "====================================================${NC}"
 echo -e "What we did for you:"
 if [ "$FILES_COPIED" = true ]; then
-    echo -e " 📂  Deployed files to ${WHITE}$INSTALL_DIR${NC} (Safe zone)"
+    echo -e " 📂  Deployed files to $INSTALL_DIR (Safe zone)"
 fi
 if [ "$VENV_USED" = true ]; then
-    echo -e " 🐍  Created a dedicated Virtual Environment (Safe & Clean)"
+    echo -e " 🐍  Created a dedicated Virtual Environment"
 else
-    echo -e " 🐍  Used system Python for maximum efficiency"
+    echo -e " 🐍  Used system Python"
 fi
-echo -e " 🚀  Added the launch command to your Batocera boot sequence"
+echo -e " 🚀  Added launch command to /userdata/system/custom.sh"
+echo -e " 💾  Ran 'batocera-save-overlay' for persistence"
 echo -e "----------------------------------------------------"
 echo -e "${YELLOW}Access your interface at:${NC}"
 echo -e "  🌐  http://batocera.local:8989"
-echo -e "  🌐  http://$(ifconfig | grep -A 1 'eth0\|wlan0' | grep 'inet ' | awk '{print $2}' | head -1):8989"
 echo -e "----------------------------------------------------"
-echo -e "You can start the server manually right now with:"
+echo -e "Manual Start Command:"
 echo -e "${GREEN}  $PYTHON_EXEC $INSTALL_DIR/server.py &${NC}"
 echo -e "${CYAN}====================================================${NC}\n"

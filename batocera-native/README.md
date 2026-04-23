@@ -4,6 +4,15 @@ This version is designed to run **directly on your Batocera device**. No separat
 
 ---
 
+## 🖼️ Screenshots
+
+<p align="center">
+  <img src="../screenshots/dashboard.png" width="45%" alt="Dashboard Overview">
+  <img src="../screenshots/library.png" width="45%" alt="Library Management">
+</p>
+
+---
+
 ## 🚀 Installation
 
 ### 1. Copy Files to Batocera
