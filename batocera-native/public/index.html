@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Batocera Interface PRO</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link href="https://fonts.googleapis.com/css?family=Press+Start+2P|VT323" rel="stylesheet">
+  <link href="https://unpkg.com/nes.css@2.3.0/css/nes.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/main.css" />
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar" class="nes-container is-dark">
+      <div class="logo">
+        <i class="nes-icon controller is-medium"></i>
+        <div class="logo-text">Interface PRO</div>
+        <button id="menu-toggle" class="nes-btn is-primary">☰</button>
+      </div>
+      <nav id="nav-menu">
+        <button class="nes-btn nav-btn active" data-view="dashboard">Dashboard</button>
+        <button class="nes-btn nav-btn" data-view="roms">Library</button>
+        <button class="nes-btn nav-btn" data-view="systems">Config</button>
+        <button class="nes-btn nav-btn" data-view="files">Storage</button>
+        <button class="nes-btn nav-btn" data-view="terminal">Terminal</button>
+        <button class="nes-btn nav-btn" data-view="logs">Logs</button>
+      </nav>
+      <div class="sidebar-footer">
+        <div id="ssh-status" class="nes-badge"><span class="is-error">Offline</span></div>
+      </div>
+    </aside>
+
+    <main id="main">
+      <!-- Dashboard -->
+      <section id="view-dashboard" class="view active">
+        <header class="view-header">
+          <h1 class="nes-text is-primary">System Overview</h1>
+          <button class="nes-btn" onclick="refreshDashboard()">Sync</button>
+        </header>
+
+        <div class="stats-grid">
+          <div class="nes-container">
+            <span class="stat-label">CPU LOAD</span>
+            <p class="stat-value" id="stat-cpu">—</p>
+            <progress class="nes-progress is-primary" id="bar-cpu" value="0" max="100"></progress>
+          </div>
+          <div class="nes-container">
+            <span class="stat-label">RAM USAGE</span>
+            <p class="stat-value" id="stat-mem">—</p>
+            <progress class="nes-progress is-success" id="bar-mem" value="0" max="100"></progress>
+          </div>
+          <div class="nes-container">
+            <span class="stat-label">THERMAL</span>
+            <p class="stat-value" id="stat-temp">—</p>
+            <progress class="nes-progress is-warning" id="bar-temp" value="0" max="100"></progress>
+          </div>
+        </div>
+
+        <div class="dashboard-bottom">
+          <div class="nes-container with-title is-dark">
+            <p class="title">System Info</p>
+            <pre id="sysinfo" style="font-size: 11px; white-space: pre-wrap;">Connecting...</pre>
+          </div>
+          <div class="nes-container with-title is-dark">
+            <p class="title">Quick Control</p>
+            <div class="control-grid">
+              <button class="nes-btn is-error" onclick="doAction('stop-game')">🛑 STOP GAME</button>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <button class="nes-btn" onclick="doAction('volume-up')">🔊 VOL+</button>
+                <button class="nes-btn" onclick="doAction('volume-down')">🔉 VOL-</button>
+              </div>
+              <button class="nes-btn is-warning" onclick="doAction('reboot')">🔄 REBOOT</button>
+              <button class="nes-btn is-error" onclick="doAction('shutdown')">🔌 POWER OFF</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Library (ROMs) -->
+      <section id="view-roms" class="view">
+        <header class="view-header">
+          <h1 class="nes-text is-primary">Library</h1>
+          <div class="header-actions">
+            <input type="text" id="rom-search" class="nes-input" placeholder="Search..." oninput="filterRoms()" style="width: 200px" />
+            <div class="nes-select" style="width: 200px">
+              <select id="rom-system" onchange="loadRoms()">
+                <option value="all">ALL</option>
+              </select>
+            </div>
+            <button class="nes-btn is-primary" onclick="refreshGamelist()">Refresh</button>
+          </div>
+        </header>
+        <div class="rom-grid" id="rom-list"></div>
+      </section>
+
+      <!-- Storage (Files) -->
+      <section id="view-files" class="view">
+        <header class="view-header">
+          <h1 class="nes-text is-primary">Storage</h1>
+          <div class="header-actions">
+            <input type="file" id="file-upload-input" style="display:none" onchange="performUpload()" />
+            <button class="nes-btn is-primary" onclick="uploadFile()">Upload</button>
+            <button class="nes-btn" onclick="navigateUp()">Up</button>
+          </div>
+        </header>
+        <div class="nes-container is-dark with-title">
+          <p class="title" id="current-path-bar">/userdata</p>
+          <div id="file-list" class="file-list"></div>
+        </div>
+      </section>
+
+      <!-- Config -->
+      <section id="view-systems" class="view">
+        <header class="view-header">
+          <h1 class="nes-text is-primary">Config</h1>
+          <div class="header-actions">
+            <input type="text" id="sys-search" class="nes-input" placeholder="Filter..." oninput="filterSystems()" />
+          </div>
+        </header>
+        <div class="systems-layout">
+          <aside class="systems-sidebar nes-container">
+            <div id="systems-list" class="systems-list"></div>
+          </aside>
+          <main class="systems-detail nes-container" id="systems-detail">
+            <p>Select a system...</p>
+          </main>
+        </div>
+      </section>
+
+      <!-- Terminal -->
+      <section id="view-terminal" class="view">
+        <header class="view-header">
+          <h1 class="nes-text is-primary">Terminal</h1>
+          <div class="header-actions">
+            <button class="nes-btn is-error" onclick="clearTerminal()">Clear</button>
+          </div>
+        </header>
+        <div class="nes-container is-dark terminal-container">
+          <div id="terminal-output" class="terminal-output">Ready to execute commands...</div>
+          <div class="terminal-input-line">
+            <span class="prompt">batocera#</span>
+            <input type="text" id="terminal-input" class="nes-input is-dark" placeholder="Enter command..." onkeydown="handleTerminalKey(event)" />
+          </div>
+        </div>
+      </section>
+
+      <!-- Logs -->
+      <section id="view-logs" class="view">
+        <header class="view-header">
+          <h1 class="nes-text is-primary">Logs</h1>
+          <div class="header-actions">
+            <div class="nes-select" style="width: 150px">
+              <select id="log-type" onchange="loadLogs()">
+                <option value="es">ES</option>
+                <option value="boot">Boot</option>
+                <option value="syslog">Sys</option>
+              </select>
+            </div>
+            <button class="nes-btn" onclick="loadLogs()">Reload</button>
+          </div>
+        </header>
+        <pre id="log-output" class="nes-container is-dark log-view">...</pre>
+      </section>
+      
+    </main>
+  </div>
+
+  <!-- Game Detail Modal -->
+  <dialog class="nes-dialog is-dark" id="game-modal">
+    <form method="dialog">
+      <div class="modal-body">
+        <div class="modal-image-side"><img id="modal-game-img" src="" alt="Cover"></div>
+        <div class="modal-info-side">
+          <h2 id="modal-game-name" class="nes-text is-primary" style="font-size: 16px">Game Title</h2>
+          <span id="modal-game-system" class="nes-badge" style="margin-bottom:10px"><span class="is-warning">SYSTEM</span></span>
+          <p id="modal-game-desc" style="font-size: 10px; margin-top:10px"></p>
+          <div class="modal-meta" style="font-size: 9px; opacity:0.7">
+            <span id="modal-game-dev">Developer</span> • <span id="modal-game-date">Year</span>
+          </div>
+          <menu class="dialog-menu" style="padding:0; margin-top:20px">
+            <button class="nes-btn">Close</button>
+          </menu>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+  <script src="/js/systems.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
