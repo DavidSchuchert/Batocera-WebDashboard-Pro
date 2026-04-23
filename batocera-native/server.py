@@ -2,7 +2,6 @@ import os, subprocess, json, time, re
 from flask import Flask, jsonify, request, send_from_directory, Response
 from urllib.parse import unquote, quote
 import xml.etree.ElementTree as ET
-import requests # We might need to install this or use urllib
 
 app = Flask(__name__, static_folder='public')
 VERSION = "1.0.0"

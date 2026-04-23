@@ -18,7 +18,7 @@ echo " |  _ \ / _\` | __/ _ \ / __/ _ \ '__/ _\` | | |_) | '__/ _ \ "
 echo " | |_) | (_| | || (_) | (_|  __/ | | (_| | |  __/| | | (_) |"
 echo " |____/ \__,_|\__\___/ \___\___|_|  \__,_| |_|   |_|  \___/ "
 echo "                                                             "
-echo -e "${GREEN}      >>> Batocera Interface PRO (v1.0) <<<${NC}"
+echo -e "${GREEN}      >>> Batocera Web Dashboard PRO (v1.0) <<<${NC}"
 echo ""
 
 # --- Dependency Check ---
@@ -63,7 +63,7 @@ fi
 # --- Start Server ---
 echo -e "${GREEN}"
 echo "----------------------------------------------------"
-echo "  Batocera Interface PRO is starting..."
+echo "  Batocera Web Dashboard PRO is starting..."
 echo "  URL: http://localhost:$(grep PORT .env | cut -d'=' -f2)"
 echo "----------------------------------------------------"
 echo -e "${NC}"

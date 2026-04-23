@@ -1,14 +1,14 @@
-# 🕹️ Batocera Interface PRO
+# 🕹️ Batocera Web Dashboard PRO
 
 <p align="center">
-  <img src="public/favicon.png" width="128" alt="Batocera Interface PRO Logo">
+  <img src="public/favicon.png" width="128" alt="Batocera Web Dashboard PRO Logo">
 </p>
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-brightgreen.svg)
 ![Style](https://img.shields.io/badge/style-NES.css-red.svg)
 
-**Batocera Interface PRO** is a professional, retro-inspired web control center for your Batocera Linux system. It allows you to manage ROMs, configure emulators, and monitor system performance with a high-end "Cyber-Noir" aesthetic.
+**Batocera Web Dashboard PRO** is a professional, retro-inspired web control center for your Batocera Linux system. It allows you to manage ROMs, configure emulators, and monitor system performance with a high-end "Cyber-Noir" aesthetic.
 
 ---
 

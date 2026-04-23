@@ -1,4 +1,4 @@
-# 🕹️ Batocera Interface PRO (Native Version)
+# 🕹️ Batocera Web Dashboard PRO (Native Version)
 
 This version is designed to run **directly on your Batocera device**. No separate PC or SSH configuration is required. Once installed, it starts automatically with your Batocera.
 

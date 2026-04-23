@@ -1,5 +1,5 @@
 /**
- * Batocera Interface PRO - Core Logic
+ * Batocera Web Dashboard PRO - Core Logic
  */
 
 const state = {

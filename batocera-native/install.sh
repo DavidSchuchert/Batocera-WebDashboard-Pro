@@ -3,6 +3,7 @@
 # --- Configuration ---
 INSTALL_DIR="/userdata/system/interface-pro"
 CUSTOM_SH="/userdata/system/custom.sh"
+START_SCRIPT="$INSTALL_DIR/start_native.sh"
 
 # --- Colors ---
 CYAN='\033[0;36m'
@@ -12,7 +13,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${CYAN}----------------------------------------------------"
-echo "  Batocera Interface PRO - Native Installer"
+echo "  Batocera Web Dashboard PRO - Native Installer"
 echo -e "----------------------------------------------------${NC}"
 
 # 1. Check if running on Batocera
@@ -26,75 +27,59 @@ echo -e "${YELLOW}[1/3] Preparing installation directory and copying files...${N
 mkdir -p "$INSTALL_DIR"
 
 CURRENT_DIR=$(pwd)
-FILES_COPIED=false
 if [ "$CURRENT_DIR" != "$INSTALL_DIR" ]; then
     cp -r "$CURRENT_DIR"/* "$INSTALL_DIR/"
-    echo -e "${CYAN}  -> Files successfully deployed to $INSTALL_DIR${NC}"
-    FILES_COPIED=true
-else
-    echo -e "${CYAN}  -> Running directly from installation directory.${NC}"
+    echo -e "${CYAN}  -> Files deployed to $INSTALL_DIR${NC}"
 fi
 
 # 3. Install Dependencies (Flask)
 echo -e "${YELLOW}[2/3] Checking dependencies...${NC}"
 PYTHON_EXEC="python3"
-VENV_USED=false
 
-# Try --user install first
 pip3 install flask --user &> /dev/null
-
 if [ $? -ne 0 ]; then
-    echo -e "${YELLOW}  -> Standard pip restricted. Creating virtual environment...${NC}"
+    echo -e "${YELLOW}  -> Creating virtual environment...${NC}"
     python3 -m venv "$INSTALL_DIR/.venv"
     "$INSTALL_DIR/.venv/bin/pip" install flask &> /dev/null
     PYTHON_EXEC="$INSTALL_DIR/.venv/bin/python3"
-    VENV_USED=true
-else
-    echo -e "${GREEN}  -> Flask installed globally/user-level.${NC}"
 fi
 
-# 4. Setup Autostart (custom.sh)
-echo -e "${YELLOW}[3/3] Configuring autostart (custom.sh)...${NC}"
+# 4. Create dedicated start script (better for debugging)
+echo -e "${YELLOW}[3/3] Creating start script and configuring custom.sh...${NC}"
 
-# Ensure custom.sh exists and has a shebang
+cat <<EOF > "$START_SCRIPT"
+#!/bin/bash
+# Batocera Interface PRO - Boot Script
+exec > "$INSTALL_DIR/boot.log" 2>&1
+echo "Starting Interface PRO at \$(date)"
+sleep 15
+cd "$INSTALL_DIR"
+$PYTHON_EXEC server.py
+EOF
+chmod +x "$START_SCRIPT"
+
+# Configure custom.sh
 if [ ! -f "$CUSTOM_SH" ]; then
     echo "#!/bin/bash" > "$CUSTOM_SH"
 fi
 
-# Remove any old entries to avoid duplicates
-sed -i '/interface-pro\/server.py/d' "$CUSTOM_SH"
+# Remove old entries
+sed -i '/interface-pro/d' "$CUSTOM_SH"
 
-# Add new entry with a small delay for network stability
+# Add clean entry
 echo "" >> "$CUSTOM_SH"
-echo "# Start Batocera Interface PRO on boot (with 10s delay for network)" >> "$CUSTOM_SH"
-echo "(sleep 10; $PYTHON_EXEC $INSTALL_DIR/server.py) &" >> "$CUSTOM_SH"
+echo "# Start Batocera Interface PRO" >> "$CUSTOM_SH"
+echo "$START_SCRIPT &" >> "$CUSTOM_SH"
 chmod +x "$CUSTOM_SH"
 
-# IMPORTANT: Save changes to the overlay so they survive a reboot
+# Save Overlay
 echo -e "${YELLOW}  -> Saving system overlay...${NC}"
 batocera-save-overlay &> /dev/null
 
-echo -e "${GREEN}  -> Autostart linked and saved successfully.${NC}"
-
-# --- Final Summary ---
-echo -e "\n${CYAN}===================================================="
-echo -e "🎉  INSTALLATION COMPLETE - ALLES TUTTI! 🎉"
-echo -e "====================================================${NC}"
-echo -e "What we did for you:"
-if [ "$FILES_COPIED" = true ]; then
-    echo -e " 📂  Deployed files to $INSTALL_DIR (Safe zone)"
-fi
-if [ "$VENV_USED" = true ]; then
-    echo -e " 🐍  Created a dedicated Virtual Environment"
-else
-    echo -e " 🐍  Used system Python"
-fi
 echo -e " 🚀  Added launch command to /userdata/system/custom.sh"
 echo -e " 💾  Ran 'batocera-save-overlay' for persistence"
+echo -e " 🔄  PLEASE REBOOT to test the automatic startup!"
 echo -e "----------------------------------------------------"
-echo -e "${YELLOW}Access your interface at:${NC}"
-echo -e "  🌐  http://batocera.local:8989"
-echo -e "----------------------------------------------------"
-echo -e "Manual Start Command:"
-echo -e "${GREEN}  $PYTHON_EXEC $INSTALL_DIR/server.py &${NC}"
-echo -e "${CYAN}====================================================${NC}\n"
+echo "  Installation Complete!"
+echo "  If it doesn't start, check: $INSTALL_DIR/boot.log"
+echo -e "----------------------------------------------------${NC}"
