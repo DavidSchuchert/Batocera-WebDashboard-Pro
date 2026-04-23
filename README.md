@@ -58,6 +58,15 @@ There are two ways to deploy this interface. Choose the one that fits your workf
 
 ---
 
+## 🖼️ Screenshots
+
+<p align="center">
+  <img src="screenshots/dashboard.png" width="45%" alt="Dashboard Overview">
+  <img src="screenshots/library.png" width="45%" alt="Library Management">
+</p>
+
+---
+
 ## 🔒 Security
 This tool is intended for use within your **local home network**. Do not expose the port to the public internet, as it allows root-level access to your Batocera system.
 
@@ -66,4 +75,4 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
-*Created for the Batocera community with ❤️.*
+*Created for the Batocera community by **DavidSchuchert** with ❤️.*
