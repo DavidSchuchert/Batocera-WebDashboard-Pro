@@ -1,7 +1,7 @@
 # 🕹️ Batocera Web Dashboard PRO
 
 <p align="center">
-  <img src="public/favicon.png" width="128" alt="Batocera Web Dashboard PRO Logo">
+  <img src="https://github.com/DavidSchuchert/Batocera-WebDashboard-Pro/raw/main/public/favicon.svg" width="180" alt="Batocera Web Dashboard PRO Logo">
 </p>
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
