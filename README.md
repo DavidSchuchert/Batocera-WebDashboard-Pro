@@ -51,17 +51,20 @@ Batocera Web Dashboard PRO is a browser-based control panel you can run **alongs
 ## Screenshots
 
 <p align="center">
-  <img src="screenshots/dashboard.png" width="45%" alt="Dashboard Overview">
+  <img src="screenshots/dashboard.png" width="48%" alt="Dashboard — live CPU/RAM/Temp stats">
   &nbsp;
-  <img src="screenshots/library.png" width="45%" alt="ROM Library">
+  <img src="screenshots/library.png" width="48%" alt="ROM Library with cover art and metadata">
 </p>
 <p align="center">
-  <img src="screenshots/files.png" width="45%" alt="File Manager">
+  <img src="screenshots/rom-modal.png" width="48%" alt="Game detail — developer, description, year">
   &nbsp;
-  <img src="screenshots/terminal.png" width="45%" alt="Terminal">
+  <img src="screenshots/files.png" width="48%" alt="File Manager — browse, upload, download">
 </p>
-
-> **Want to add your own screenshots?** Drop PNG files in `screenshots/` and open a PR.
+<p align="center">
+  <img src="screenshots/terminal.png" width="48%" alt="Built-in terminal with command security">
+  &nbsp;
+  <img src="screenshots/mobile.png" width="20%" alt="Mobile view on iPhone">
+</p>
 
 ---
 
