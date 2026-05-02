@@ -15,3 +15,6 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude Briefing — NOT FOR GIT
+CLAUDE_BRIEFING.md
