@@ -430,11 +430,212 @@ STARTEOF
     batocera-save-overlay &>/dev/null || true
 }
 
-# ─── Update (stub — fully implemented in Phase 2) ──────────────────────────────
+# ─── Version Check ─────────────────────────────────────────────────────────────
+check_for_updates() {
+    local current
+    current=$(cat "$SCRIPT_DIR/version.txt" 2>/dev/null || echo "0")
+    local remote
+    remote=$(curl -sf --max-time 5 \
+        "https://raw.githubusercontent.com/DavidSchuchert/Batocera-WebDashboard-Pro/main/version.txt" \
+        2>/dev/null || echo "")
+
+    if [ -z "$remote" ]; then
+        echo -e "${YELLOW}  ⚠️  Could not check for updates (no internet?)${NC}"
+        return 2
+    fi
+    remote=$(echo "$remote" | tr -d '[:space:]')
+    current=$(echo "$current" | tr -d '[:space:]')
+
+    if [ "$current" = "$remote" ]; then
+        echo -e "${GREEN}  ✅ Already on latest version: ${current}${NC}"
+        return 0
+    else
+        echo -e "${CYAN}  📦 Update available: ${current} → ${remote}${NC}"
+        return 1
+    fi
+}
+
+# ─── Update — Remote Mode ───────────────────────────────────────────────────────
+do_update_remote() {
+    echo -e "${CYAN}  🔄 Updating Batocera WebDashboard PRO (Remote Mode)...${NC}"
+    echo ""
+
+    if ! command -v git &>/dev/null; then
+        echo -e "${RED}  Error: git is required for updates.${NC}"
+        exit 1
+    fi
+
+    # Backup .env
+    if [ -f "$SCRIPT_DIR/.env" ]; then
+        cp "$SCRIPT_DIR/.env" "$SCRIPT_DIR/.env.backup"
+        echo -e "${GREEN}  ✅ Config backed up to .env.backup${NC}"
+    fi
+
+    # Pull latest
+    cd "$SCRIPT_DIR"
+    git stash 2>/dev/null || true
+    git pull origin main
+
+    # Restore config
+    if [ -f "$SCRIPT_DIR/.env.backup" ]; then
+        mv "$SCRIPT_DIR/.env.backup" "$SCRIPT_DIR/.env"
+        echo -e "${GREEN}  ✅ SSH credentials restored from backup${NC}"
+    fi
+
+    # Update deps
+    if [ -d "$SCRIPT_DIR/.venv" ]; then
+        "$SCRIPT_DIR/.venv/bin/pip" install -r "$SCRIPT_DIR/requirements.txt" -q 2>/dev/null || \
+            "$SCRIPT_DIR/.venv/bin/pip" install flask paramiko python-dotenv -q
+        echo -e "${GREEN}  ✅ Dependencies updated${NC}"
+    fi
+
+    echo ""
+    echo -e "${GREEN}  ✅ Update complete!${NC}"
+    echo "  Restart dashboard to apply changes."
+}
+
+# ─── Update — Native Mode ───────────────────────────────────────────────────────
+do_update_native() {
+    echo -e "${CYAN}  🔄 Updating Batocera WebDashboard PRO (Native Mode)...${NC}"
+    echo ""
+
+    if [ ! -d "$NATIVE_INSTALL_DIR" ]; then
+        echo -e "${RED}  Error: Native installation not found at $NATIVE_INSTALL_DIR${NC}"
+        echo "  Run ./install.sh first."
+        exit 1
+    fi
+
+    cd "$NATIVE_INSTALL_DIR"
+
+    # Backup config
+    [ -f ".env" ] && cp ".env" ".env.backup"
+    echo -e "${GREEN}  ✅ Config backed up${NC}"
+
+    # Pull latest
+    git stash 2>/dev/null || true
+    git pull origin main
+
+    # Restore config
+    [ -f ".env.backup" ] && mv ".env.backup" ".env"
+    echo -e "${GREEN}  ✅ Credentials restored${NC}"
+
+    # Restart service
+    pkill -f "server.py" 2>/dev/null || true
+    sleep 2
+    local start_script="$NATIVE_INSTALL_DIR/start_native.sh"
+    if [ -f "$start_script" ]; then
+        nohup "$start_script" &>/dev/null &
+        echo -e "${GREEN}  ✅ Dashboard restarting...${NC}"
+    fi
+
+    batocera-save-overlay &>/dev/null || true
+
+    echo ""
+    echo -e "${GREEN}  ✅ Update complete!${NC}"
+}
+
+# ─── Update (detect mode & dispatch) ───────────────────────────────────────────
 cmd_update() {
-    echo -e "${YELLOW}  Update mechanism — implemented in v2.1${NC}"
-    echo "  For now: git pull origin main && pip install -r requirements.txt"
-    exit 0
+    local os
+    os=$(detect_os)
+
+    set +e
+    check_for_updates
+    local update_status=$?
+    set -e
+
+    if [ "$update_status" -eq 0 ] && [ "$UNATTENDED" = false ]; then
+        read -rp "  Already up to date. Force update anyway? [y/N]: " force
+        force="${force:-N}"
+        [[ "$force" =~ ^[Yy]$ ]] || exit 0
+    fi
+
+    if [ "$os" = "batocera" ] || [ "$MODE" = "native" ]; then
+        do_update_native
+    else
+        do_update_remote
+    fi
+}
+
+# ─── Existing Install Detection & v1→v2 Migration ──────────────────────────────
+migrate_from_v1_remote() {
+    echo ""
+    echo -e "${CYAN}  📦 Migrating v1.0 Remote installation...${NC}"
+
+    local backup_dir="$SCRIPT_DIR/backup-v1-$(date +%Y%m%d-%H%M%S)"
+    mkdir -p "$backup_dir"
+    # Backup everything except .git and .venv
+    find "$SCRIPT_DIR" -maxdepth 1 \
+        ! -name ".git" ! -name ".venv" ! -name "backup-v1*" \
+        -exec cp -r {} "$backup_dir/" \; 2>/dev/null || true
+    echo -e "${GREEN}  ✅ Backup created: $backup_dir/${NC}"
+    echo -e "${GREEN}  ✅ SSH credentials preserved (.env)${NC}"
+
+    echo ""
+    echo -e "  ℹ️  v2.0 changes:"
+    echo "       New: Unified installer (this script)"
+    echo "       New: Update mechanism (./install.sh --update)"
+    echo "       New: Better error handling + pagination"
+
+    if command -v git &>/dev/null && git -C "$SCRIPT_DIR" rev-parse &>/dev/null 2>&1; then
+        git -C "$SCRIPT_DIR" pull origin main 2>/dev/null || true
+        echo -e "${GREEN}  ✅ v2.0 code pulled${NC}"
+    fi
+}
+
+migrate_from_v1_native() {
+    echo ""
+    echo -e "${CYAN}  📦 Migrating v1.0 Native installation...${NC}"
+
+    local backup_dir="${NATIVE_INSTALL_DIR}-v1-backup-$(date +%Y%m%d)"
+    cp -r "$NATIVE_INSTALL_DIR" "$backup_dir" 2>/dev/null || true
+    echo -e "${GREEN}  ✅ Backup created: $backup_dir/${NC}"
+
+    # Preserve .env
+    [ -f "$NATIVE_INSTALL_DIR/.env" ] && \
+        cp "$NATIVE_INSTALL_DIR/.env" /tmp/interface-pro-env-backup
+
+    echo -e "${GREEN}  ✅ Native migration prepared — re-running installer...${NC}"
+}
+
+check_existing_install() {
+    local migrated=false
+
+    # Remote check
+    if [ -f "$SCRIPT_DIR/.env" ] && [ -f "$SCRIPT_DIR/server.py" ]; then
+        local current_ver
+        current_ver=$(cat "$SCRIPT_DIR/version.txt" 2>/dev/null | tr -d '[:space:]' || echo "")
+        if [ "${current_ver:-0}" = "1.0.0" ] || [ -z "$current_ver" ]; then
+            echo -e "${YELLOW}  📁 Existing Remote installation found (v1.0 detected)${NC}"
+            if [ "$UNATTENDED" = false ]; then
+                read -rp "     Migrate to v2.0? [Y/n]: " migrate_answer
+                migrate_answer="${migrate_answer:-Y}"
+                if [[ "$migrate_answer" =~ ^[Yy]$ ]]; then
+                    migrate_from_v1_remote
+                    migrated=true
+                fi
+            fi
+        fi
+    fi
+
+    # Native check
+    if [ -d "$NATIVE_INSTALL_DIR" ] && [ ! -f "$NATIVE_INSTALL_DIR/install.sh" ]; then
+        echo -e "${YELLOW}  📁 Existing Native installation found at $NATIVE_INSTALL_DIR${NC}"
+        if [ "$UNATTENDED" = false ]; then
+            read -rp "     Migrate to v2.0? [Y/n]: " migrate_answer
+            migrate_answer="${migrate_answer:-Y}"
+            if [[ "$migrate_answer" =~ ^[Yy]$ ]]; then
+                migrate_from_v1_native
+                migrated=true
+            fi
+        fi
+    fi
+
+    # Restore native .env after migration
+    if [ "$migrated" = true ] && [ -f /tmp/interface-pro-env-backup ]; then
+        mkdir -p "$NATIVE_INSTALL_DIR"
+        mv /tmp/interface-pro-env-backup "$NATIVE_INSTALL_DIR/.env"
+    fi
 }
 
 # ─── Uninstall (stub — fully implemented in Phase 3) ──────────────────────────
@@ -473,6 +674,9 @@ main() {
             exit 1
         fi
     fi
+
+    # Check for existing v1 installations and offer migration
+    check_existing_install
 
     # Select mode
     select_mode "$os"
