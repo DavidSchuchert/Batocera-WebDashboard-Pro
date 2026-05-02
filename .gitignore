@@ -16,5 +16,13 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Claude Briefing — NOT FOR GIT
+# Claude Briefings — NOT FOR GIT
 CLAUDE_BRIEFING.md
+BATOCERA_BRIEFING.md
+
+# Playwright artifacts
+tests/e2e/node_modules/
+tests/e2e/test-results/
+tests/e2e/playwright-report/
+tests/e2e/demo-recording/
+tests/e2e/package-lock.json

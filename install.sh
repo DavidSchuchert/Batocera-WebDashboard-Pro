@@ -166,7 +166,11 @@ show_mode_explanation() {
     echo    "  ║  • Best for: stationary Batocera, always-on access            ║"
     echo    "  ║                                                                ║"
     echo -e "  ║  URL after start: http://batocera.local:8989                  ║"
-    echo    "  ╚══════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "  ╚══════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${YELLOW}  💡 Both modes can be installed from your Mac/PC.${NC}"
+    echo -e "${YELLOW}     For Native, you'll be asked for your Batocera SSH details${NC}"
+    echo -e "${YELLOW}     so the dashboard can be pushed to your device automatically.${NC}"
     echo ""
 }
 
@@ -338,18 +342,25 @@ EOF
     fi
 }
 
-# ─── Native Installation ───────────────────────────────────────────────────────
+# ─── Native: Auto-detect (local vs SSH-push) ───────────────────────────────────
 install_native() {
     echo -e "${CYAN}  ── Native Mode Setup ──────────────────────────────────────────${NC}"
     echo ""
 
-    # Must be on Batocera
-    if [ ! -d "/userdata/system" ]; then
-        echo -e "${RED}  Error: Native mode requires a Batocera system.${NC}"
-        echo "  /userdata/system not found. Are you running on Batocera?"
-        exit 1
+    # Are we on Batocera ourselves?
+    if [ -d "/userdata/system" ] && grep -q "batocera" /etc/os-release 2>/dev/null; then
+        echo -e "${GREEN}  ✅ Running on Batocera — installing locally.${NC}"
+        install_native_local
+    else
+        echo -e "${CYAN}  You're not on Batocera — Native Mode will be installed${NC}"
+        echo -e "${CYAN}  on your Batocera device over SSH.${NC}"
+        echo ""
+        install_native_via_ssh
     fi
+}
 
+# ─── Native: Local install (running on Batocera) ───────────────────────────────
+install_native_local() {
     # Determine source dir
     local src_dir="$SCRIPT_DIR/batocera-native"
     if [ ! -d "$src_dir" ]; then
@@ -389,6 +400,26 @@ install_native() {
     fi
 
     echo -e "${YELLOW}  [4/4] Configuring autostart...${NC}"
+    write_start_script_local "$python_exec"
+    register_custom_sh_local
+
+    batocera-save-overlay &>/dev/null || true
+
+    echo ""
+    echo -e "${GREEN}  ╔══════════════════════════════════════════════════════════════╗"
+    echo -e "  ║  ✅ Native installation complete!                              ║"
+    echo -e "  ║                                                                ║"
+    echo -e "  ║  The dashboard starts automatically on next boot.              ║"
+    printf "  ║  URL: http://batocera.local:%-34s ║\n" "$PORT"
+    echo -e "  ║                                                                ║"
+    echo -e "  ║  Reboot to activate, or start manually:                        ║"
+    echo -e "  ║    $NATIVE_INSTALL_DIR/start_native.sh"
+    echo -e "  ╚══════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+}
+
+write_start_script_local() {
+    local python_exec="$1"
     local start_script="$NATIVE_INSTALL_DIR/start_native.sh"
     cat > "$start_script" <<STARTEOF
 #!/bin/bash
@@ -399,8 +430,9 @@ cd "$NATIVE_INSTALL_DIR"
 PORT=$PORT $python_exec server.py
 STARTEOF
     chmod +x "$start_script"
+}
 
-    # custom.sh
+register_custom_sh_local() {
     if [ ! -f "$NATIVE_CUSTOM_SH" ]; then
         echo "#!/bin/bash" > "$NATIVE_CUSTOM_SH"
     fi
@@ -408,26 +440,187 @@ STARTEOF
     {
         echo ""
         echo "# Start Batocera WebDashboard PRO"
-        echo "$start_script &"
+        echo "$NATIVE_INSTALL_DIR/start_native.sh &"
     } >> "$NATIVE_CUSTOM_SH"
     chmod +x "$NATIVE_CUSTOM_SH"
+}
 
-    batocera-save-overlay &>/dev/null || true
+# ─── Native: SSH push install (from Mac/PC to Batocera) ────────────────────────
+install_native_via_ssh() {
+    # Source dir for batocera-native files
+    local src_dir="$SCRIPT_DIR/batocera-native"
+    if [ ! -d "$src_dir" ]; then
+        echo -e "${RED}  Error: $src_dir not found.${NC}"
+        echo "  This installer needs to be run from the project root."
+        exit 1
+    fi
+
+    # Collect SSH details
+    if [ "$UNATTENDED" = true ]; then
+        if [ -z "$BATOCERA_HOST" ]; then
+            echo -e "${RED}  Error: BATOCERA_HOST is required for unattended SSH install.${NC}"
+            echo "  Set: export BATOCERA_HOST=<ip>"
+            exit 1
+        fi
+    else
+        echo -e "${BOLD}  SSH connection to Batocera${NC}"
+        echo -e "  ${CYAN}(Tip: enable SSH in Batocera under Network Settings → Enable SSH)${NC}"
+        echo ""
+        local default_host="${BATOCERA_HOST:-batocera.local}"
+        read -rp "  Batocera IP or hostname [$default_host]: " input_host
+        BATOCERA_HOST="${input_host:-$default_host}"
+        read -rp "  SSH user [root]: " input_user
+        BATOCERA_USER="${input_user:-root}"
+        read -rp "  Web UI port [$DEFAULT_PORT]: " input_port
+        PORT="${input_port:-$DEFAULT_PORT}"
+    fi
+
+    # Test SSH connection + verify Batocera
+    echo ""
+    echo -e "${YELLOW}  [1/6] Testing SSH connection to ${BATOCERA_USER}@${BATOCERA_HOST}...${NC}"
+    echo -e "  ${CYAN}(You may be prompted for the SSH password — default is 'linux')${NC}"
+
+    # Use a control socket so user only types the password ONCE for this session
+    local SSH_SOCKET
+    SSH_SOCKET="$(mktemp -u -t bdspro-ssh-XXXXXX 2>/dev/null || mktemp -u /tmp/bdspro-ssh-XXXXXX)"
+
+    # Open master connection (interactive password prompt happens here)
+    if ! ssh -M -S "$SSH_SOCKET" -fN \
+            -o ControlPersist=600 \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=15 \
+            "${BATOCERA_USER}@${BATOCERA_HOST}" 2>&1; then
+        echo ""
+        echo -e "${RED}  ❌ SSH connection failed.${NC}"
+        echo ""
+        echo "  Common causes:"
+        echo "   • SSH not enabled on Batocera (Settings → Network → Enable SSH)"
+        echo "   • Wrong IP/hostname (check with 'arp -a' or your router)"
+        echo "   • Batocera not on the same network or powered off"
+        echo "   • Firewall blocking port 22"
+        exit 1
+    fi
+
+    # Helper for running commands via the socket
+    _ssh_run()  { ssh -S "$SSH_SOCKET" "${BATOCERA_USER}@${BATOCERA_HOST}" "$@"; }
+    _scp_to()   { scp -o ControlPath="$SSH_SOCKET" -r "$@" "${BATOCERA_USER}@${BATOCERA_HOST}:$NATIVE_INSTALL_DIR/"; }
+    _ssh_close(){ ssh -S "$SSH_SOCKET" -O exit "${BATOCERA_USER}@${BATOCERA_HOST}" 2>/dev/null || true; }
+    trap _ssh_close EXIT
+
+    if _ssh_run "test -d /userdata/system && grep -q batocera /etc/os-release 2>/dev/null"; then
+        echo -e "${GREEN}  ✅ Connected — confirmed Batocera system.${NC}"
+    else
+        echo -e "${RED}  ❌ Connected, but this doesn't look like Batocera (/userdata/system not found).${NC}"
+        echo "  Are you sure this is your Batocera device?"
+        exit 1
+    fi
+
+    # Show remote Batocera version for confidence
+    local remote_ver
+    remote_ver=$(_ssh_run "batocera-version 2>/dev/null || cat /usr/share/batocera/batocera.version 2>/dev/null || echo unknown" | tr -d '\r\n')
+    echo -e "  ${CYAN}Remote: ${remote_ver}${NC}"
+
+    # 2. Prepare install dir (handle existing installation)
+    echo -e "${YELLOW}  [2/6] Preparing $NATIVE_INSTALL_DIR on Batocera...${NC}"
+    if _ssh_run "test -d $NATIVE_INSTALL_DIR"; then
+        if [ "$UNATTENDED" = false ]; then
+            echo -e "${YELLOW}  ⚠️  Existing installation found at $NATIVE_INSTALL_DIR${NC}"
+            read -rp "     Overwrite? [Y/n]: " ow
+            ow="${ow:-Y}"
+            [[ "$ow" =~ ^[Yy]$ ]] || { echo "  Aborted."; exit 0; }
+        fi
+        # Stop running server before overwriting
+        _ssh_run "pkill -f 'server.py' 2>/dev/null; rm -rf $NATIVE_INSTALL_DIR" || true
+    fi
+    _ssh_run "mkdir -p $NATIVE_INSTALL_DIR"
+    echo -e "${GREEN}  ✅ Install directory ready${NC}"
+
+    # 3. Copy files
+    echo -e "${YELLOW}  [3/6] Copying files to Batocera...${NC}"
+    if ! _scp_to "$src_dir"/.; then
+        echo -e "${RED}  ❌ File transfer failed.${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}  ✅ Files transferred${NC}"
+
+    # 4. Install Flask on remote
+    echo -e "${YELLOW}  [4/6] Installing Flask on Batocera...${NC}"
+    local remote_python_exec
+    if _ssh_run "pip3 install flask --user -q 2>/dev/null"; then
+        remote_python_exec="python3"
+        echo -e "${GREEN}  ✅ Flask installed (system pip)${NC}"
+    elif _ssh_run "python3 -m venv $NATIVE_INSTALL_DIR/.venv && $NATIVE_INSTALL_DIR/.venv/bin/pip install flask -q"; then
+        remote_python_exec="$NATIVE_INSTALL_DIR/.venv/bin/python3"
+        echo -e "${GREEN}  ✅ Flask installed (venv)${NC}"
+    else
+        echo -e "${RED}  ❌ Could not install Flask.${NC}"
+        echo "  Try connecting via SSH manually and running: pip3 install flask --user"
+        exit 1
+    fi
+
+    # 5. Write start_native.sh locally with substituted values, then push
+    echo -e "${YELLOW}  [5/6] Writing autostart script...${NC}"
+    local tmp_start
+    tmp_start="$(mktemp -t bdspro-start-XXXXXX 2>/dev/null || mktemp /tmp/bdspro-start-XXXXXX)"
+    cat > "$tmp_start" <<STARTEOF
+#!/bin/bash
+exec > "$NATIVE_INSTALL_DIR/boot.log" 2>&1
+echo "Starting Batocera WebDashboard PRO at \$(date)"
+sleep 15
+cd "$NATIVE_INSTALL_DIR"
+PORT=$PORT $remote_python_exec server.py
+STARTEOF
+    scp -o ControlPath="$SSH_SOCKET" "$tmp_start" \
+        "${BATOCERA_USER}@${BATOCERA_HOST}:$NATIVE_INSTALL_DIR/start_native.sh"
+    rm -f "$tmp_start"
+    _ssh_run "chmod +x $NATIVE_INSTALL_DIR/start_native.sh"
+    echo -e "${GREEN}  ✅ Autostart script installed${NC}"
+
+    # 6. Register in custom.sh + save overlay
+    echo -e "${YELLOW}  [6/6] Registering in custom.sh + saving overlay...${NC}"
+    _ssh_run "
+        if [ ! -f $NATIVE_CUSTOM_SH ]; then
+            echo '#!/bin/bash' > $NATIVE_CUSTOM_SH
+        fi
+        sed -i '/interface-pro/d' $NATIVE_CUSTOM_SH
+        {
+            echo ''
+            echo '# Start Batocera WebDashboard PRO'
+            echo '$NATIVE_INSTALL_DIR/start_native.sh &'
+        } >> $NATIVE_CUSTOM_SH
+        chmod +x $NATIVE_CUSTOM_SH
+        batocera-save-overlay 2>/dev/null || true
+    "
+    echo -e "${GREEN}  ✅ Autostart configured${NC}"
 
     echo ""
     echo -e "${GREEN}  ╔══════════════════════════════════════════════════════════════╗"
-    echo    "  ║  ✅ Native installation complete!                              ║"
-    echo    "  ║                                                                ║"
-    echo    "  ║  The dashboard starts automatically on next boot.              ║"
-    printf  "  ║  URL: http://batocera.local:%s                                  ║\n" "$PORT"
-    echo    "  ║  Logs: $NATIVE_INSTALL_DIR/boot.log               ║"
-    echo    "  ║                                                                ║"
-    echo -e "  ║  Reboot to activate autostart, or run manually:               ║"
-    echo    "  ║    $start_script                        ║"
+    echo -e "  ║  ✅ Native install pushed to Batocera!                         ║"
+    echo -e "  ║                                                                ║"
+    echo -e "  ║  Auto-starts on next boot.                                     ║"
+    printf "  ║  URL: %-55s ║\n" "http://${BATOCERA_HOST}:${PORT}"
     echo -e "  ╚══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 
-    batocera-save-overlay &>/dev/null || true
+    # Offer to start immediately
+    if [ "$UNATTENDED" = false ]; then
+        read -rp "  Start the dashboard now (no need to reboot)? [Y/n]: " start_now
+        start_now="${start_now:-Y}"
+        if [[ "$start_now" =~ ^[Yy]$ ]]; then
+            echo -e "${CYAN}  Starting via SSH...${NC}"
+            _ssh_run "nohup $NATIVE_INSTALL_DIR/start_native.sh >/dev/null 2>&1 &"
+            sleep 4
+            if curl -sf --max-time 5 "http://${BATOCERA_HOST}:${PORT}/health" >/dev/null 2>&1; then
+                echo -e "${GREEN}  ✅ Dashboard is live at http://${BATOCERA_HOST}:${PORT}${NC}"
+            else
+                echo -e "${YELLOW}  ⚠️  Started, but no HTTP response yet — check logs:${NC}"
+                echo -e "       ssh ${BATOCERA_USER}@${BATOCERA_HOST} 'cat $NATIVE_INSTALL_DIR/boot.log'"
+            fi
+        fi
+    fi
+
+    _ssh_close
+    trap - EXIT
 }
 
 # ─── Version Check ─────────────────────────────────────────────────────────────

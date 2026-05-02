@@ -48,6 +48,12 @@ Batocera Web Dashboard PRO is a browser-based control panel you can run **alongs
 
 ---
 
+## Demo
+
+<p align="center">
+  <img src="screenshots/demo.gif" width="700" alt="Dashboard walkthrough">
+</p>
+
 ## Screenshots
 
 <p align="center">
@@ -81,6 +87,13 @@ chmod +x install.sh && ./install.sh
 ```
 
 The installer **auto-detects your OS** (Batocera, macOS, Linux, WSL, Git Bash) and walks you through Remote vs Native setup interactively.
+
+> 💡 **Both modes can be installed from your Mac/PC.**
+> If you pick **Native** while running on macOS/Linux, the installer
+> will ask for your Batocera's SSH details and **push the install to
+> the device** — you don't need to copy files manually or run anything
+> on Batocera itself. (Make sure SSH is enabled in
+> Batocera → Network Settings.)
 
 **Windows:** double-click `install.bat` — it finds WSL or Git Bash automatically.
 
