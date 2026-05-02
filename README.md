@@ -66,6 +66,8 @@ Batocera Web Dashboard PRO is a browser-based control panel you can run **alongs
   <img src="screenshots/mobile.png" width="20%" alt="Mobile view on iPhone">
 </p>
 
+> **Note on cover art:** The screenshots use placeholder covers generated from game metadata. For privacy and copyright reasons, no actual game artwork is included in this repository. On a real Batocera system, Scraper automatically downloads official cover art from sources like ScreenScraper or TheGamesDB into your `/userdata/roms/*/images/` folders.
+
 ---
 
 ## Installation
