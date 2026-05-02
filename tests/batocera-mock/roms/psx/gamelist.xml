@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<gameList>
+  <game>
+    <path>./FinalFantasy7.chd</path>
+    <name>Final Fantasy VII</name>
+    <desc>Cloud Strife joins eco-terrorists AVALANCHE to fight the megacorporation Shinra and the mysterious Sephiroth.</desc>
+    <developer>Squaresoft</developer>
+    <releasedate>19970131T000000</releasedate>
+    <thumbnail>./images/FinalFantasy7-thumb.png</thumbnail>
+  </game>
+</gameList>

@@ -33,9 +33,18 @@ RUN touch /userdata/roms/snes/SuperMarioWorld.sfc \
           /userdata/roms/n64/MarioKart64.z64 \
           /userdata/roms/psx/FinalFantasy7.chd
 
-# Fake gamelists
+# Gamelists + cover art for all systems
 COPY roms/snes/gamelist.xml /userdata/roms/snes/gamelist.xml
-COPY roms/nes/gamelist.xml /userdata/roms/nes/gamelist.xml
+COPY roms/nes/gamelist.xml  /userdata/roms/nes/gamelist.xml
+COPY roms/gba/gamelist.xml  /userdata/roms/gba/gamelist.xml
+COPY roms/n64/gamelist.xml  /userdata/roms/n64/gamelist.xml
+COPY roms/psx/gamelist.xml  /userdata/roms/psx/gamelist.xml
+
+COPY roms/snes/images/ /userdata/roms/snes/images/
+COPY roms/nes/images/  /userdata/roms/nes/images/
+COPY roms/gba/images/  /userdata/roms/gba/images/
+COPY roms/n64/images/  /userdata/roms/n64/images/
+COPY roms/psx/images/  /userdata/roms/psx/images/
 
 # Fake batocera version + commands
 RUN echo "batocera-linux 40 (20240101)" > /usr/share/batocera/batocera.version 2>/dev/null || \

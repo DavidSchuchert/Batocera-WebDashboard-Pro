@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<gameList>
+  <game>
+    <path>./PokemonFireRed.gba</path>
+    <name>Pokémon Fire Red</name>
+    <desc>Catch and train over 150 Pokémon in this remake of the classic Game Boy adventure.</desc>
+    <developer>Game Freak</developer>
+    <releasedate>20040129T000000</releasedate>
+    <thumbnail>./images/PokemonFireRed-thumb.png</thumbnail>
+  </game>
+  <game>
+    <path>./MetroidFusion.gba</path>
+    <name>Metroid Fusion</name>
+    <desc>Samus battles parasite-infected creatures aboard a space station, alone and infected herself.</desc>
+    <developer>Nintendo</developer>
+    <releasedate>20021118T000000</releasedate>
+    <thumbnail>./images/MetroidFusion-thumb.png</thumbnail>
+  </game>
+</gameList>

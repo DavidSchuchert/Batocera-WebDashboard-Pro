@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<gameList>
+  <game>
+    <path>./MarioKart64.z64</path>
+    <name>Mario Kart 64</name>
+    <desc>Race against friends or the CPU across 16 courses with shells, bananas, and lightning bolts.</desc>
+    <developer>Nintendo</developer>
+    <releasedate>19961214T000000</releasedate>
+    <thumbnail>./images/MarioKart64-thumb.png</thumbnail>
+  </game>
+</gameList>
