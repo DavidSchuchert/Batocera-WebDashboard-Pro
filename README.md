@@ -20,13 +20,13 @@ There are two ways to deploy this interface. Choose the one that fits your workf
 **Best for:** Users who want to manage their Batocera from a powerful PC or laptop while the console is running.
 - **How it works:** Runs on your Windows/Mac/Linux PC and connects to Batocera via SSH.
 - **Pros:** No installation needed on the Batocera device itself; uses your PC's resources.
-- **Setup:** Run `./start.sh` on your PC and enter your Batocera IP.
+- **Setup:** Run `./install.sh` on your PC and follow the guided setup.
 
 ### 🕹️ 2. Native Version (Standalone)
 **Best for:** Users who want the interface to be a permanent part of their Batocera console.
 - **How it works:** Runs directly on the Batocera hardware. Starts automatically when you turn on the console.
 - **Pros:** Always available, zero latency, standalone (no second PC needed).
-- **Setup:** Copy the `batocera-native` folder to your device and run the installer.
+- **Setup:** Run `./install.sh` and choose **Native Mode** when prompted.
 - **Documentation:** [See Native Installation Guide](batocera-native/README.md)
 
 ---
@@ -42,19 +42,28 @@ There are two ways to deploy this interface. Choose the one that fits your workf
 
 ---
 
-## 🚀 Installation (Remote Version)
+## 🚀 Installation
 
 1. **Clone the Repo:**
    ```bash
    git clone https://github.com/DavidSchuchert/Batocera-WebDashboard-Pro.git
    cd Batocera-WebDashboard-Pro
    ```
-2. **Run:**
+2. **Run the unified installer:**
    ```bash
-   chmod +x start.sh
-   ./start.sh
+   chmod +x install.sh
+   ./install.sh
    ```
-3. **Access:** Open `http://localhost:8989`
+   The installer detects your platform, explains the modes, and guides you through setup.
+3. **Access:** Open `http://localhost:8989` (Remote) or `http://batocera.local:8989` (Native)
+
+**Other commands:**
+```bash
+./install.sh --update      # Update to latest version
+./install.sh --status      # Show version, port, and process status
+./install.sh --uninstall   # Remove installation
+./install.sh --unattended  # Non-interactive (use ENV vars: BATOCERA_HOST, BATOCERA_USER, etc.)
+```
 
 ---
 

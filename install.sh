@@ -638,17 +638,169 @@ check_existing_install() {
     fi
 }
 
-# ─── Uninstall (stub — fully implemented in Phase 3) ──────────────────────────
+# ─── Uninstall ─────────────────────────────────────────────────────────────────
 cmd_uninstall() {
-    echo -e "${YELLOW}  Unified uninstall — implemented in Phase 3${NC}"
-    echo "  For native: use batocera-native/uninstall.sh"
-    exit 0
+    local os
+    os=$(detect_os)
+    local keep_config=false
+    for arg in "$@"; do
+        [ "$arg" = "--keep-config" ] && keep_config=true
+    done
+
+    if [ "$os" = "batocera" ] || [ "$MODE" = "native" ]; then
+        uninstall_native "$keep_config"
+    else
+        uninstall_remote "$keep_config"
+    fi
 }
 
-# ─── Status (stub — fully implemented in Phase 3) ─────────────────────────────
+uninstall_remote() {
+    local keep_config=${1:-false}
+    echo -e "${RED}  ── Remote Mode Uninstall ────────────────────────────────────────${NC}"
+    echo ""
+
+    if [ "$UNATTENDED" = false ]; then
+        read -rp "  This will stop the server and remove the venv. Continue? [y/N]: " confirm
+        confirm="${confirm:-N}"
+        [[ "$confirm" =~ ^[Yy]$ ]] || { echo "  Aborted."; exit 0; }
+    fi
+
+    echo -e "${YELLOW}  [1/3] Stopping server...${NC}"
+    pkill -f "server.py" 2>/dev/null || true
+    echo -e "${GREEN}  ✅ Server stopped (or was not running)${NC}"
+
+    echo -e "${YELLOW}  [2/3] Removing virtual environment...${NC}"
+    rm -rf "$SCRIPT_DIR/.venv"
+    echo -e "${GREEN}  ✅ .venv removed${NC}"
+
+    echo -e "${YELLOW}  [3/3] Cleaning up...${NC}"
+    if [ "$keep_config" = false ] && [ -f "$SCRIPT_DIR/.env" ]; then
+        read -rp "  Also remove .env (SSH credentials)? [y/N]: " del_env
+        del_env="${del_env:-N}"
+        if [[ "$del_env" =~ ^[Yy]$ ]]; then
+            rm -f "$SCRIPT_DIR/.env"
+            echo -e "${GREEN}  ✅ .env removed${NC}"
+        else
+            echo -e "${CYAN}  ℹ  .env preserved${NC}"
+        fi
+    fi
+
+    echo ""
+    echo -e "${GREEN}  ✅ Remote uninstall complete.${NC}"
+    echo "  Project files are still in: $SCRIPT_DIR"
+    echo "  To reinstall: ./install.sh"
+}
+
+uninstall_native() {
+    local keep_config=${1:-false}
+    echo -e "${RED}  ── Native Mode Uninstall ─────────────────────────────────────────${NC}"
+    echo ""
+
+    if [ ! -d "$NATIVE_INSTALL_DIR" ]; then
+        echo -e "${YELLOW}  No native installation found at $NATIVE_INSTALL_DIR${NC}"
+        exit 0
+    fi
+
+    if [ "$UNATTENDED" = false ]; then
+        read -rp "  Remove $NATIVE_INSTALL_DIR and autostart entry? [y/N]: " confirm
+        confirm="${confirm:-N}"
+        [[ "$confirm" =~ ^[Yy]$ ]] || { echo "  Aborted."; exit 0; }
+    fi
+
+    echo -e "${YELLOW}  [1/4] Stopping server...${NC}"
+    pkill -f "server.py" 2>/dev/null || true
+    fuser -k 8989/tcp &>/dev/null 2>&1 || true
+    echo -e "${GREEN}  ✅ Server stopped${NC}"
+
+    echo -e "${YELLOW}  [2/4] Removing autostart from custom.sh...${NC}"
+    if [ -f "$NATIVE_CUSTOM_SH" ]; then
+        sed -i '/interface-pro/d' "$NATIVE_CUSTOM_SH"
+        sed -i '/WebDashboard PRO/d' "$NATIVE_CUSTOM_SH"
+        echo -e "${GREEN}  ✅ Autostart entry removed${NC}"
+    fi
+
+    echo -e "${YELLOW}  [3/4] Removing installation directory...${NC}"
+    rm -rf "$NATIVE_INSTALL_DIR"
+    echo -e "${GREEN}  ✅ $NATIVE_INSTALL_DIR removed${NC}"
+
+    echo -e "${YELLOW}  [4/4] Saving overlay...${NC}"
+    batocera-save-overlay &>/dev/null || true
+    echo -e "${GREEN}  ✅ Overlay saved${NC}"
+
+    echo ""
+    echo -e "${GREEN}  ✅ Native uninstall complete.${NC}"
+}
+
+# ─── Status ────────────────────────────────────────────────────────────────────
 cmd_status() {
-    echo -e "${YELLOW}  Status command — implemented in Phase 3${NC}"
-    exit 0
+    local os
+    os=$(detect_os)
+
+    # Determine mode
+    local mode="REMOTE"
+    local install_dir="$SCRIPT_DIR"
+    if [ "$os" = "batocera" ] || [ -d "$NATIVE_INSTALL_DIR" ]; then
+        mode="NATIVE"
+        install_dir="$NATIVE_INSTALL_DIR"
+    fi
+
+    # Version
+    local version
+    version=$(cat "$install_dir/version.txt" 2>/dev/null | tr -d '[:space:]' || echo "unknown")
+
+    # Config check
+    local config_env="$install_dir/.env"
+    local config_status="❌ .env missing"
+    [ -f "$config_env" ] && config_status="✅ .env exists"
+
+    # Port
+    local port="unknown"
+    if [ -f "$config_env" ]; then
+        port=$(grep "^PORT=" "$config_env" 2>/dev/null | cut -d= -f2 | tr -d '[:space:]' || echo "$DEFAULT_PORT")
+    fi
+    [ -z "$port" ] && port="$DEFAULT_PORT"
+
+    # Process check
+    local pid
+    pid=$(pgrep -f "server.py" 2>/dev/null | head -1 || echo "")
+    local proc_status="❌ Not running"
+    [ -n "$pid" ] && proc_status="✅ Running (PID $pid)"
+
+    # URL
+    local url="http://localhost:${port}"
+    [ "$mode" = "NATIVE" ] && url="http://batocera.local:${port}"
+
+    # Update check
+    local update_info="⚠️  Could not check"
+    local remote_ver
+    remote_ver=$(curl -sf --max-time 5 \
+        "https://raw.githubusercontent.com/DavidSchuchert/Batocera-WebDashboard-Pro/main/version.txt" \
+        2>/dev/null | tr -d '[:space:]' || echo "")
+    if [ -n "$remote_ver" ]; then
+        if [ "$version" = "$remote_ver" ]; then
+            update_info="✅ Up to date"
+        else
+            update_info="📦 Update available → ${remote_ver}"
+        fi
+    fi
+
+    echo ""
+    echo -e "${CYAN}  ═══════════════════════════════════════════════════════${NC}"
+    echo    "  Batocera WebDashboard PRO — Status"
+    echo -e "${CYAN}  ═══════════════════════════════════════════════════════${NC}"
+    printf  "  %-12s %s\n" "Mode:"     "$mode"
+    printf  "  %-12s %s\n" "Version:"  "$version"
+    printf  "  %-12s %s\n" "Port:"     "$port"
+    printf  "  %-12s %s\n" "Process:"  "$proc_status"
+    printf  "  %-12s %s\n" "URL:"      "$url"
+    printf  "  %-12s %s\n" "Config:"   "$config_status"
+    printf  "  %-12s %s\n" "Update:"   "$update_info"
+    echo -e "${CYAN}  ═══════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    # Exit non-zero if not running
+    [ -z "$pid" ] && return 1
+    return 0
 }
 
 # ─── Main ──────────────────────────────────────────────────────────────────────
@@ -656,8 +808,8 @@ main() {
     print_banner
 
     case "$COMMAND" in
-        update)    cmd_update; return ;;
-        uninstall) cmd_uninstall; return ;;
+        update)    cmd_update "$@"; return ;;
+        uninstall) cmd_uninstall "$@"; return ;;
         status)    cmd_status; return ;;
     esac
 
