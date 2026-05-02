@@ -25,3 +25,6 @@ tests/e2e/node_modules/
 tests/e2e/test-results/
 tests/e2e/playwright-report/
 tests/e2e/demo-recording/
+
+# Personal community-post drafts (kept local, not for the public repo)
+docs/community-posts/

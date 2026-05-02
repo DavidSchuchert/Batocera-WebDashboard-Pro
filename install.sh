@@ -380,6 +380,10 @@ install_native_local() {
     echo -e "${GREEN}  ✅ $NATIVE_INSTALL_DIR ready${NC}"
 
     echo -e "${YELLOW}  [2/4] Deploying files...${NC}"
+    # Sync version.txt from repo root before deploy
+    if [ -f "$SCRIPT_DIR/version.txt" ] && [ "$src_dir" != "$NATIVE_INSTALL_DIR" ]; then
+        cp "$SCRIPT_DIR/version.txt" "$src_dir/version.txt" 2>/dev/null || true
+    fi
     if [ "$src_dir" != "$NATIVE_INSTALL_DIR" ]; then
         cp -r "$src_dir"/. "$NATIVE_INSTALL_DIR/"
         echo -e "${GREEN}  ✅ Files deployed${NC}"
@@ -535,7 +539,10 @@ install_native_via_ssh() {
     _ssh_run "mkdir -p $NATIVE_INSTALL_DIR"
     echo -e "${GREEN}  ✅ Install directory ready${NC}"
 
-    # 3. Copy files
+    # 3. Copy files (ensure version.txt is in sync with the repo root)
+    if [ -f "$SCRIPT_DIR/version.txt" ]; then
+        cp "$SCRIPT_DIR/version.txt" "$src_dir/version.txt"
+    fi
     echo -e "${YELLOW}  [3/6] Copying files to Batocera...${NC}"
     if ! _scp_to "$src_dir"/.; then
         echo -e "${RED}  ❌ File transfer failed.${NC}"

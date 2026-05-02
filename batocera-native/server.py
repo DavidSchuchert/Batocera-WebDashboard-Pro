@@ -4,7 +4,16 @@ from urllib.parse import unquote, quote
 import xml.etree.ElementTree as ET
 
 app = Flask(__name__, static_folder='public')
-VERSION = "1.0.0"
+
+def _read_version():
+    """Read version from version.txt next to this file. Falls back if missing."""
+    try:
+        with open(os.path.join(os.path.dirname(__file__), 'version.txt')) as f:
+            return f.read().strip() or "0.0.0"
+    except Exception:
+        return "0.0.0"
+
+VERSION = _read_version()
 
 # Helper for local command execution
 def local_exec(cmd):
