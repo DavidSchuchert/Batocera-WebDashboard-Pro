@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="https://github.com/DavidSchuchert/Batocera-WebDashboard-Pro/raw/main/public/favicon.svg" width="160" alt="Batocera Web Dashboard PRO">
+  <img src="public/logo.svg" width="520" alt="Batocera WebDashboard PRO">
 </p>
-
-<h1 align="center">Batocera Web Dashboard PRO</h1>
 
 <p align="center">
   A retro-styled web control center for your <a href="https://batocera.org">Batocera Linux</a> gaming system.

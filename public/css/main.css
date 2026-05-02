@@ -69,15 +69,22 @@ body::before {
   text-align: center;
 }
 
+.logo-img {
+  width: 100%;
+  max-width: 220px;
+  height: auto;
+  filter: drop-shadow(0 0 12px rgba(233, 106, 7, 0.35));
+}
+
 .logo i {
   font-size: 40px;
   color: var(--primary);
   filter: drop-shadow(0 0 10px var(--primary-glow));
 }
 
-.logo-text { 
-  font-size: 14px; 
-  font-weight: bold; 
+.logo-text {
+  font-size: 14px;
+  font-weight: bold;
   letter-spacing: 2px;
   background: linear-gradient(to bottom, #fff, #888);
   -webkit-background-clip: text;
@@ -503,7 +510,8 @@ nav { display: flex; flex-direction: column; gap: 12px; flex-grow: 1; }
     z-index: 100;
   }
   
-  .logo { margin-bottom: 0; flex-direction: row; gap: 10px; width: 100%; }
+  .logo { margin-bottom: 0; flex-direction: row; gap: 10px; width: 100%; align-items: center; justify-content: space-between; }
+  .logo-img { max-width: 160px; }
   .logo i { font-size: 20px; }
   .logo-text { font-size: 10px; }
   
