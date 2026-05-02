@@ -126,6 +126,18 @@ def get_gamelist_map(system):
     except: pass
     return mapping
 
+# ── Path Safety ─────────────────────────────────────────────────────────────
+SAFE_BASE = '/userdata'
+
+def _safe_path(path: str):
+    """Return normalised path if it is under /userdata, else None."""
+    if not path:
+        return None
+    normalised = os.path.normpath('/' + path.lstrip('/'))
+    if normalised == SAFE_BASE or normalised.startswith(SAFE_BASE + '/'):
+        return normalised
+    return None
+
 # ── Command Security ─────────────────────────────────────────────────────────
 _DANGEROUS_PATTERNS = [
     re.compile(r'rm\s+-[rf]*r[rf]*\s+[/~]'),   # rm -rf / or rm -fr /
@@ -423,8 +435,8 @@ def api_logs():
 
 @app.route('/api/files/download')
 def api_files_download():
-    path = request.args.get('path')
-    if not path: return "No path", 400
+    path = _safe_path(request.args.get('path', ''))
+    if not path: return jsonify({'error': 'Invalid or missing path'}), 400
     try:
         sftp = get_sftp()
         if not sftp: return "SSH unavailable", 503
@@ -443,9 +455,10 @@ def api_files_download():
 @app.route('/api/files/delete', methods=['POST'])
 def api_files_delete():
     try:
-        path = request.get_json().get('path')
-        if not path: return "No path", 400
-        if path == '/' or path == '/userdata':
+        raw = (request.get_json() or {}).get('path', '')
+        path = _safe_path(raw)
+        if not path: return jsonify({'error': 'Invalid or missing path'}), 400
+        if path == SAFE_BASE:
             return jsonify({'error': 'Cannot delete root or userdata'}), 403
         out, err, code = ssh_exec(f'rm -rf "{path}"')
         if code == 0: return jsonify({'ok': True})
@@ -455,13 +468,14 @@ def api_files_delete():
 
 @app.route('/api/files/upload', methods=['POST'])
 def api_files_upload():
-    dir_path = request.form.get('dir')
+    dir_path = _safe_path(request.form.get('dir', ''))
     file = request.files.get('file')
-    if not dir_path or not file: return "Missing dir or file", 400
+    if not dir_path: return jsonify({'error': 'Invalid or missing dir'}), 400
+    if not file: return jsonify({'error': 'Missing file'}), 400
     try:
         sftp = get_sftp()
         if not sftp: return "SSH unavailable", 503
-        remote_path = os.path.join(dir_path, file.filename).replace('\\', '/')
+        remote_path = (dir_path + '/' + os.path.basename(file.filename)).replace('//', '/')
         sftp.putfo(file.stream, remote_path)
         return jsonify({'ok': True})
     except Exception as e:
@@ -469,7 +483,9 @@ def api_files_upload():
 
 @app.route('/api/files/list')
 def files():
-    d = request.args.get('dir', '/userdata')
+    d = _safe_path(request.args.get('dir', '/userdata'))
+    if not d:
+        return jsonify({'error': 'Access denied: path outside /userdata'}), 403
     out, _, _ = ssh_exec(f'ls -la "{d}"')
     res = []
     for line in out.split('\n')[1:]:

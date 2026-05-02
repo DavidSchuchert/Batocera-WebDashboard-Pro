@@ -536,11 +536,30 @@ nav { display: flex; flex-direction: column; gap: 12px; flex-grow: 1; }
   
   .stats-grid { grid-template-columns: 1fr; }
   .dashboard-bottom { grid-template-columns: 1fr; }
-  
+
   .rom-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-  
+
+  .systems-layout { grid-template-columns: 1fr; height: auto; }
+  .systems-sidebar { height: 200px; overflow-y: auto; }
+  .systems-detail { min-height: 300px; }
+
   .terminal-container { height: 350px; }
-  
+
+  /* Touch targets: make small buttons tappable */
+  .btn-sm {
+    padding: 10px 14px !important;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 10px !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .file-item { flex-wrap: wrap; gap: 8px; padding: 12px; }
+  .file-name { flex: 1; min-width: 0; word-break: break-all; }
+  .file-actions { margin-left: auto; }
+
   .toast { width: calc(100% - 40px); left: 20px; right: 20px; bottom: 20px; }
 }
 

@@ -368,11 +368,6 @@ async function loadFiles(dir) {
   }
 }
 
-// Mobile-compatible upload: wrap input in label so tap works on all browsers
-function uploadFile() {
-  document.getElementById('file-upload-input').click();
-}
-
 async function performUpload() {
   const input = document.getElementById('file-upload-input');
   if (!input.files.length) return;
