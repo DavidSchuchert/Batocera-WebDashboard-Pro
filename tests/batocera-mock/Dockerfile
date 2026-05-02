@@ -19,8 +19,7 @@ RUN mkdir -p /userdata/roms/snes/images \
              /userdata/roms/psx/images \
              /userdata/roms/n64/images \
              /userdata/system/logs \
-             /userdata/system \
-             /sys/class/thermal/thermal_zone0
+             /userdata/system
 
 # Fake ROMs
 RUN touch /userdata/roms/snes/SuperMarioWorld.sfc \
@@ -57,9 +56,6 @@ RUN echo '#!/bin/bash\necho "volume set"' > /usr/bin/batocera-audio && \
 # Fake batocera.conf
 RUN echo "global.language=de_DE\nglobal.videomode=auto\nsnes.shaders=scan-lines\n" \
     > /userdata/system/batocera.conf
-
-# Fake thermal (55°C = 55000)
-RUN echo "55000" > /sys/class/thermal/thermal_zone0/temp
 
 # Fake ES log
 RUN echo "[INFO] EmulationStation started\n[INFO] Loading theme\n[INFO] Ready" \

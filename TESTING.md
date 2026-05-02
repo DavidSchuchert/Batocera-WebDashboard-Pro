@@ -6,8 +6,8 @@ Das Dashboard hat **zwei Betriebsmodi**, die beide testbar sind:
 
 | Modus | Beschreibung | Port |
 |-------|-------------|------|
-| **Remote** | Läuft auf einem externen Gerät (z.B. Mac), verbindet sich per SSH zu Batocera | `8081` |
-| **Native** | Läuft direkt auf der Batocera-Maschine, liest Dateien lokal | `8082` |
+| **Remote** | Läuft auf einem externen Gerät (z.B. Mac), verbindet sich per SSH zu Batocera | `8091` |
+| **Native** | Läuft direkt auf der Batocera-Maschine, liest Dateien lokal | `8092` |
 
 Für Tests wird kein echtes Batocera-System benötigt — ein Mock-Container simuliert die Batocera-Umgebung vollständig.
 
@@ -74,27 +74,95 @@ Der `batocera-mock`-Container ist ein Debian-Container mit:
 ## Test-Umgebung starten
 
 ```bash
-# Alle Container bauen und starten
-docker compose -f docker-compose.test.yml up --build
+# Alle Container bauen und starten (im Hintergrund)
+docker compose -f docker-compose.test.yml up --build -d
 
 # Nur einzelnen Modus starten
-docker compose -f docker-compose.test.yml up --build dashboard-remote
-docker compose -f docker-compose.test.yml up --build dashboard-native
+docker compose -f docker-compose.test.yml up --build -d dashboard-remote
+docker compose -f docker-compose.test.yml up --build -d dashboard-native
+
+# Container stoppen
+docker compose -f docker-compose.test.yml down
 ```
 
 ### Erreichbare Services nach dem Start:
 
 | Service | URL | Was testen |
 |---------|-----|-----------|
-| Remote-Dashboard | http://localhost:8081 | Vollständige SSH-basierte Verbindung |
-| Native-Dashboard | http://localhost:8082 | Direkter Dateizugriff |
+| Remote-Dashboard | http://localhost:8091 | Vollständige SSH-basierte Verbindung |
+| Native-Dashboard | http://localhost:8092 | Direkter Dateizugriff |
 | Mock SSH direkt | `ssh root@localhost -p 2299` (PW: `linux`) | Mock-Filesystem prüfen |
+
+> **Hinweis:** Der Native-Server läuft intern auf Port 8989 (hardcoded in `batocera-native/server.py`).
+> Das Mapping `8092:8989` im Compose-File macht ihn auf Port 8092 erreichbar.
+
+---
+
+## Automatische Tests
+
+Das Test-Script `tests/run_tests.py` prüft alle API-Endpunkte beider Modi automatisch.
+
+### Voraussetzungen
+
+- Python 3.8+ (kein Install nötig — nur stdlib)
+- Laufende Container (Stack muss vorher gestartet sein)
+- Optional: `sshpass` für SSH-Tests (`brew install sshpass` auf Mac)
+
+### Tests ausführen
+
+```bash
+# Stack starten + Tests + Stack stoppen (alles in einem)
+docker compose -f docker-compose.test.yml up --build -d
+python3 tests/run_tests.py
+docker compose -f docker-compose.test.yml down
+
+# Oder: Tests + automatischer Stopp
+python3 tests/run_tests.py --stop-after
+
+# Stack automatisch starten, testen und stoppen
+python3 tests/run_tests.py --start-stack --stop-after
+
+# Nur einen Modus testen
+python3 tests/run_tests.py --remote-only
+python3 tests/run_tests.py --native-only
+```
+
+### Was getestet wird
+
+| Test | Beschreibung |
+|------|-------------|
+| Health / SSH-Status | Remote ist mit Mock verbunden |
+| Systeme-Liste | snes, nes, gba, n64, psx vorhanden |
+| ROMs laden | Spielliste erscheint mit Metadaten aus gamelist.xml |
+| Datei-Browser | /userdata-Listing funktioniert |
+| Logs | EmulationStation-Log lesbar |
+| Batocera-Version | `batocera-linux 40 (20240101)` |
+| Settings | Host/User-Felder vorhanden |
+| Native Health | Mode = "native" |
+| Native ROMs | Metadaten aus gamelist.xml korrekt |
+| SSH-Mock | Port 2299 erreichbar, Filesystem sichtbar |
+
+### Beispiel-Ausgabe
+
+```
+Batocera WebDashboard Pro — Automated Tests
+Remote: http://localhost:8091  |  Native: http://localhost:8092
+
+Remote Mode (http://localhost:8091)
+  [PASS] Health endpoint returns 200
+  [PASS] SSH status is 'connected'
+  [PASS] SNES ROMs list is non-empty — got 3 ROMs
+  [PASS] ROM developer not 'Unknown' — dev=Nintendo
+  ...
+
+Results: 34/34 passed  All tests passed!
+```
 
 ---
 
 ## Manuelle Test-Checkliste
 
-### Remote-Modus (http://localhost:8081)
+### Remote-Modus (http://localhost:8091)
 
 - [ ] **Dashboard lädt** — Batocera-Version, CPU%, RAM%, Temperatur sichtbar
 - [ ] **ROM-Bibliothek** — Alle 5 Systeme (snes, nes, gba, n64, psx) erscheinen im Dropdown
@@ -108,7 +176,7 @@ docker compose -f docker-compose.test.yml up --build dashboard-native
 - [ ] **Settings** → Host/User/Pass anzeigen (kein echtes Passwort sichtbar)
 - [ ] **Controls** → Vol+/Vol-/Reboot/Shutdown Buttons vorhanden (Reboot/Shutdown **nicht** klicken im Test)
 
-### Native-Modus (http://localhost:8082)
+### Native-Modus (http://localhost:8092)
 
 - [ ] **Dashboard lädt** — Settings-Tab nicht sichtbar (kein SSH-Setup nötig)
 - [ ] **ROM-Bibliothek** — Systeme aus `/userdata/roms/` werden geladen
