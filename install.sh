@@ -607,14 +607,28 @@ STARTEOF
         read -rp "  Start the dashboard now (no need to reboot)? [Y/n]: " start_now
         start_now="${start_now:-Y}"
         if [[ "$start_now" =~ ^[Yy]$ ]]; then
-            echo -e "${CYAN}  Starting via SSH...${NC}"
+            echo -e "${CYAN}  Starting via SSH (the start script waits 15 s for boot to settle)...${NC}"
+            # Launch in the background; start_native.sh has its own sleep 15 before
+            # it actually starts the server (so the dashboard is ready ~17 s later).
             _ssh_run "nohup $NATIVE_INSTALL_DIR/start_native.sh >/dev/null 2>&1 &"
-            sleep 4
-            if curl -sf --max-time 5 "http://${BATOCERA_HOST}:${PORT}/health" >/dev/null 2>&1; then
+            # Poll for up to 30 s — print a dot every 2 s so the user sees progress
+            local up=false
+            printf "  Waiting for HTTP response"
+            for _ in $(seq 1 15); do
+                sleep 2
+                if curl -sf --max-time 2 "http://${BATOCERA_HOST}:${PORT}/health" >/dev/null 2>&1; then
+                    up=true
+                    break
+                fi
+                printf "."
+            done
+            echo ""
+            if [ "$up" = true ]; then
                 echo -e "${GREEN}  ✅ Dashboard is live at http://${BATOCERA_HOST}:${PORT}${NC}"
             else
-                echo -e "${YELLOW}  ⚠️  Started, but no HTTP response yet — check logs:${NC}"
+                echo -e "${YELLOW}  ⚠️  No HTTP response yet — the server may still be starting. Check:${NC}"
                 echo -e "       ssh ${BATOCERA_USER}@${BATOCERA_HOST} 'cat $NATIVE_INSTALL_DIR/boot.log'"
+                echo -e "       Or just wait ~20 s and try http://${BATOCERA_HOST}:${PORT} in your browser."
             fi
         fi
     fi
