@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<gameList>
+  <game>
+    <path>./SuperMarioBros.nes</path>
+    <name>Super Mario Bros.</name>
+    <desc>The original Mario adventure. Jump on Goombas, collect coins, and save Princess Peach.</desc>
+    <developer>Nintendo</developer>
+    <releasedate>19850913T000000</releasedate>
+  </game>
+  <game>
+    <path>./Contra.nes</path>
+    <name>Contra</name>
+    <desc>Run-and-gun classic. Blast through alien forces with a buddy in co-op mode.</desc>
+    <developer>Konami</developer>
+    <releasedate>19880222T000000</releasedate>
+  </game>
+  <game>
+    <path>./Castlevania.nes</path>
+    <name>Castlevania</name>
+    <desc>Simon Belmont fights through Dracula's castle wielding a whip against monsters.</desc>
+    <developer>Konami</developer>
+    <releasedate>19860926T000000</releasedate>
+  </game>
+</gameList>

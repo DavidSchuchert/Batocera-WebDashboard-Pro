@@ -1,0 +1,44 @@
+services:
+
+  # --- Mock Batocera Machine (SSH-Server + fake filesystem) ---
+  batocera-mock:
+    build:
+      context: ./tests/batocera-mock
+    container_name: batocera-mock
+    hostname: batocera
+    ports:
+      - "2299:22"     # SSH: localhost:2299 → Batocera mock
+    restart: unless-stopped
+
+  # --- Dashboard: REMOTE mode (läuft auf Mac, verbindet per SSH zu Mock) ---
+  dashboard-remote:
+    build: .
+    container_name: dashboard-remote
+    ports:
+      - "8081:8080"   # http://localhost:8081
+    environment:
+      - BATOCERA_HOST=batocera-mock
+      - BATOCERA_PORT=22
+      - BATOCERA_USER=root
+      - BATOCERA_PASS=linux
+      - PORT=8080
+      - MODE=remote
+    depends_on:
+      - batocera-mock
+    restart: unless-stopped
+
+  # --- Dashboard: NATIVE mode (läuft direkt auf der "Batocera"-Maschine) ---
+  dashboard-native:
+    build:
+      context: ./batocera-native
+    container_name: dashboard-native
+    ports:
+      - "8082:8080"   # http://localhost:8082
+    volumes:
+      # Teilt das Mock-Filesystem (simuliert natives Batocera-Laufwerk)
+      - batocera-userdata:/userdata
+    restart: unless-stopped
+
+volumes:
+  batocera-userdata:
+    driver: local
