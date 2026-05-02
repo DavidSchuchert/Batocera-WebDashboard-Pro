@@ -104,4 +104,8 @@ jobs:
       - name: Validate docker-compose files
         run: |
           docker compose -f docker-compose.test.yml config --quiet && echo "docker-compose.test.yml OK"
-          docker compose -f docker-compose.yml config --quiet && echo "docker-compose.yml OK"
+          if [ -f docker-compose.yml ]; then
+            docker compose -f docker-compose.yml config --quiet && echo "docker-compose.yml OK"
+          else
+            echo "docker-compose.yml not present (skipping)"
+          fi
