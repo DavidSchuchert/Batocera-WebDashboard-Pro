@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<gameList>
+  <game>
+    <path>./SuperMarioWorld.sfc</path>
+    <name>Super Mario World</name>
+    <desc>The classic SNES platformer. Guide Mario through Dinosaur Land to rescue Princess Peach from Bowser.</desc>
+    <developer>Nintendo</developer>
+    <releasedate>19901121T000000</releasedate>
+    <thumbnail>./images/SuperMarioWorld-thumb.png</thumbnail>
+  </game>
+  <game>
+    <path>./DonkeyKongCountry.sfc</path>
+    <name>Donkey Kong Country</name>
+    <desc>Donkey Kong and Diddy Kong team up to recover their stolen banana hoard from King K. Rool.</desc>
+    <developer>Rare</developer>
+    <releasedate>19941121T000000</releasedate>
+    <thumbnail>./images/DonkeyKongCountry-thumb.png</thumbnail>
+  </game>
+  <game>
+    <path>./Zelda.sfc</path>
+    <name>The Legend of Zelda: A Link to the Past</name>
+    <desc>Link must rescue the seven maidens and defeat Ganon to restore peace to Hyrule.</desc>
+    <developer>Nintendo</developer>
+    <releasedate>19911121T000000</releasedate>
+    <thumbnail>./images/Zelda-thumb.png</thumbnail>
+  </game>
+</gameList>

@@ -1,0 +1,50 @@
+name: ✨ Feature request
+description: Suggest an idea or improvement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the use case or pain point. Why does this matter?
+      placeholder: |
+        When I have hundreds of ROMs in one system, scrolling through the list is slow.
+        I'd like to filter by genre or year.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How would you like this to work? UI mockups, API sketches, or just words are all fine.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Anything else you've thought about? Existing workarounds?
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Which mode does this affect?
+      multiple: true
+      options:
+        - Remote
+        - Native
+        - Both
+        - Mobile/responsive layout
+        - Installer
+        - Documentation
+
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Would you like to contribute?
+      options:
+        - label: I'd be willing to open a PR for this
+        - label: I'd help test a PR if someone else writes it

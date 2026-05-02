@@ -1,0 +1,96 @@
+name: 🐛 Bug report
+description: Something isn't working
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill out the form below — the more detail, the faster we can fix it.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug — what you expected vs. what actually happened.
+      placeholder: |
+        I tried to upload a ROM but got "500 Internal Server Error".
+        Expected: ROM appears in the list.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to reproduce the issue.
+      placeholder: |
+        1. Go to Library
+        2. Click Upload
+        3. Select file X.zip
+        4. See error
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Which mode?
+      options:
+        - Remote (running on Mac/PC, connecting via SSH)
+        - Native (running on the Batocera device itself)
+        - Both
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Dashboard version
+      description: Output of `./install.sh --status` or contents of `version.txt`
+      placeholder: "2.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: batocera-version
+    attributes:
+      label: Batocera version
+      description: Output of `batocera-version` on your device
+      placeholder: "batocera-linux 40 (20240101)"
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Host OS (only relevant for Remote mode)
+      options:
+        - macOS
+        - Linux
+        - Windows (WSL)
+        - Windows (Git Bash)
+        - Other (please specify in description)
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser (only relevant for frontend bugs)
+      placeholder: "Chrome 120, Safari 17, Firefox 121, ..."
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Output from `docker logs dashboard-remote` or the browser console.
+        Please redact anything sensitive (IPs, passwords) before pasting.
+      render: shell
+
+  - type: checkboxes
+    id: searched
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched [existing issues](https://github.com/DavidSchuchert/Batocera-WebDashboard-Pro/issues?q=is%3Aissue) and didn't find a duplicate
+          required: true
+        - label: I'm running the latest version (or have tried `./install.sh --update`)
+          required: true

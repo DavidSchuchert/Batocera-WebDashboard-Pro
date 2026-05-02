@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussions
+    url: https://github.com/DavidSchuchert/Batocera-WebDashboard-Pro/discussions
+    about: Ask a question or share an idea
+  - name: 🔒 Security vulnerability
+    url: https://github.com/DavidSchuchert/Batocera-WebDashboard-Pro/security/advisories/new
+    about: Report a security issue privately (do not open a public issue)
+  - name: 🎮 Batocera Forum
+    url: https://forum.batocera.org
+    about: For Batocera-specific questions not related to this dashboard
