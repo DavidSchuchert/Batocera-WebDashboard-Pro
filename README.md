@@ -121,7 +121,7 @@ export PORT=8989
 | Mode | URL |
 |------|-----|
 | Remote | `http://localhost:8989` |
-| Remote (Docker) | `http://localhost:8080` |
+| Remote (Docker) | `http://localhost:8080` (port via `.env` änderbar) |
 | Native | `http://batocera.local:8989` |
 
 ### Docker setup (Remote only)
@@ -135,7 +135,8 @@ cd Batocera-WebDashboard-Pro
 
 # 2. Create config
 cp docker/.env.example docker/.env
-# Edit docker/.env and set BATOCERA_HOST, BATOCERA_USER, BATOCERA_PASS
+# Edit docker/.env — set BATOCERA_HOST, BATOCERA_USER, BATOCERA_PASS
+# Optional: change PORT (default: 8080)
 
 # 3. Start
 docker compose -f docker/docker-compose.yml up -d
