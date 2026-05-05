@@ -163,9 +163,20 @@ show_mode_explanation() {
     echo    "  ║  • Dashboard runs DIRECTLY on your Batocera device            ║"
     echo    "  ║  • No SSH needed, no second computer needed                   ║"
     echo    "  ║  • Starts AUTOMATICALLY when Batocera boots                   ║"
-    echo    "  ║  • Best for: stationary Batocera, always-on access            ║"
+    echo    "  ║  • Best for: stationary Batocera, always-on access           ║"
     echo    "  ║                                                                ║"
     echo -e "  ║  URL after start: http://batocera.local:8989                  ║"
+    echo -e "  ╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo -e "  ╔══════════════════════════════════════════════════════════════╗"
+    echo    "  ║           🐳 DOCKER MODE (Remote + Docker)                  ║"
+    echo    "  ║                                                                ║"
+    echo    "  ║  • Dashboard runs in a Docker container on your Mac/PC/Server ║"
+    echo    "  ║  • Connects via SSH to your Batocera                          ║"
+    echo    "  ║  • No Python/dependency installation needed on your machine   ║"
+    echo    "  ║  • Best for: clean isolation, easy start/stop                 ║"
+    echo    "  ║                                                                ║"
+    echo -e "  ║  URL after start: http://localhost:8080                        ║"
     echo -e "  ╚══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${YELLOW}  💡 Both modes can be installed from your Mac/PC.${NC}"
@@ -202,14 +213,16 @@ select_mode() {
 
     echo -e "${BOLD}  Which installation mode do you want?${NC}"
     echo ""
-    echo "    [1] 🌐 REMOTE   — I run this on my Mac/PC (NOT on Batocera)"
+    echo "    [1] 🌐 REMOTE   — I run this on my Mac/PC (Python direct)"
     echo "    [2] 🎮 NATIVE   — I run this DIRECTLY on my Batocera"
+    echo "    [3] 🐳 DOCKER  — I run this in a Docker container"
     echo ""
     read -rp "  Enter choice [1]: " choice
     choice="${choice:-1}"
 
     case "$choice" in
         2) MODE="native" ;;
+        3) MODE="docker" ;;
         *) MODE="remote" ;;
     esac
 }
@@ -340,6 +353,108 @@ EOF
             cd "$SCRIPT_DIR" && "$SCRIPT_DIR/.venv/bin/python3" server.py
         fi
     fi
+}
+
+# ─── Docker Installation ───────────────────────────────────────────────────────
+install_docker() {
+    echo -e "${CYAN}  ── Docker Mode Setup ───────────────────────────────────────────${NC}"
+    echo ""
+
+    # 1. Check Docker
+    echo -e "${YELLOW}  [1/4] Checking Docker...${NC}"
+    if ! command -v docker &>/dev/null; then
+        echo -e "${RED}  Error: Docker is not installed.${NC}"
+        echo ""
+        echo "  Install Docker first:"
+        echo "    macOS:    https://docs.docker.com/docker-for-mac/install/"
+        echo "    Windows:  https://docs.docker.com/docker-for-windows/install/"
+        echo "    Linux:    sudo apt install docker.io docker-compose"
+        echo ""
+        exit 1
+    fi
+    if ! docker info &>/dev/null; then
+        echo -e "${RED}  Error: Docker daemon is not running.${NC}"
+        echo "  Start Docker and try again."
+        exit 1
+    fi
+    echo -e "${GREEN}  ✅ Docker found and running${NC}"
+
+    # 2. Collect SSH credentials
+    if [ "$UNATTENDED" = true ]; then
+        if [ -z "$BATOCERA_HOST" ]; then
+            echo -e "${RED}  Error: BATOCERA_HOST is required for unattended Docker install.${NC}"
+            echo "  Set: export BATOCERA_HOST=<ip>"
+            exit 1
+        fi
+    else
+        if [ -f "$SCRIPT_DIR/docker/.env" ]; then
+            echo -e "${YELLOW}  Existing docker/.env found. Using it.${NC}"
+            # shellcheck disable=SC1090
+            source "$SCRIPT_DIR/docker/.env" 2>/dev/null || true
+        else
+            local default_host="${BATOCERA_HOST:-batocera.local}"
+            read -rp "  Enter Batocera IP or hostname [$default_host]: " input_host
+            BATOCERA_HOST="${input_host:-$default_host}"
+            read -rp "  Enter Batocera username [root]: " input_user
+            BATOCERA_USER="${input_user:-root}"
+            read -rsp "  Enter Batocera password [linux]: " input_pass
+            echo ""
+            BATOCERA_PASS="${input_pass:-linux}"
+        fi
+    fi
+
+    # 3. Write docker/.env
+    echo -e "${YELLOW}  [2/4] Writing docker/.env...${NC}"
+    cat > "$SCRIPT_DIR/docker/.env" <<EOF
+BATOCERA_HOST=${BATOCERA_HOST}
+BATOCERA_PORT=${BATOCERA_PORT:-22}
+BATOCERA_USER=${BATOCERA_USER:-root}
+BATOCERA_PASS=${BATOCERA_PASS}
+PORT=${PORT:-8080}
+MODE=remote
+EOF
+    echo -e "${GREEN}  ✅ docker/.env created${NC}"
+
+    # 4. Build & start
+    echo -e "${YELLOW}  [3/4] Building Docker image...${NC}"
+    if ! docker compose -f "$SCRIPT_DIR/docker/docker-compose.yml" build --quiet 2>&1; then
+        echo -e "${RED}  Error: Docker build failed.${NC}"
+        docker compose -f "$SCRIPT_DIR/docker/docker-compose.yml" build
+        exit 1
+    fi
+    echo -e "${GREEN}  ✅ Image built${NC}"
+
+    echo -e "${YELLOW}  [4/4] Starting container...${NC}"
+    # Remove old container if exists
+    docker rm -f batocera-dashboard &>/dev/null || true
+    if ! docker compose -f "$SCRIPT_DIR/docker/docker-compose.yml" up -d --quiet 2>&1; then
+        echo -e "${RED}  Error: Could not start container.${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}  ✅ Container started${NC}"
+
+    # Wait for health
+    echo -e "${CYAN}  Waiting for dashboard to become healthy...${NC}"
+    local retries=15
+    while [ "$retries" -gt 0 ]; do
+        if curl -sf --max-time 2 http://localhost:8080/health &>/dev/null; then
+            break
+        fi
+        retries=$((retries - 1))
+        sleep 2
+    done
+
+    echo ""
+    echo -e "${GREEN}  ╔══════════════════════════════════════════════════════════════╗"
+    echo    "  ║  ✅ Docker installation complete!                           ║"
+    echo    "  ║                                                                ║"
+    echo    "  ║  Start/Stop:    docker compose -f docker/docker-compose.yml up -d / down  ║"
+    echo    "  ║  Logs:          docker logs batocera-dashboard                   ║"
+    echo    "  ║  Shell:          docker exec -it batocera-dashboard /bin/bash  ║"
+    echo    "  ║                                                                ║"
+    echo -e "  ║  URL:           http://localhost:8080                          ║"
+    echo -e "  ╚══════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
 }
 
 # ─── Native: Auto-detect (local vs SSH-push) ───────────────────────────────────
@@ -708,6 +823,49 @@ do_update_remote() {
     echo "  Restart dashboard to apply changes."
 }
 
+# ─── Update — Docker Mode ───────────────────────────────────────────────────────
+do_update_docker() {
+    echo -e "${CYAN}  🔄 Updating Batocera WebDashboard PRO (Docker Mode)...${NC}"
+    echo ""
+
+    # Pull latest code
+    if ! command -v git &>/dev/null; then
+        echo -e "${RED}  Error: git is required for updates.${NC}"
+        exit 1
+    fi
+
+    # Backup docker/.env
+    if [ -f "$SCRIPT_DIR/docker/.env" ]; then
+        cp "$SCRIPT_DIR/docker/.env" "$SCRIPT_DIR/docker/.env.backup"
+        echo -e "${GREEN}  ✅ Config backed up to docker/.env.backup${NC}"
+    fi
+
+    cd "$SCRIPT_DIR"
+    git stash 2>/dev/null || true
+    git pull origin main
+
+    # Restore config
+    if [ -f "$SCRIPT_DIR/docker/.env.backup" ]; then
+        mv "$SCRIPT_DIR/docker/.env.backup" "$SCRIPT_DIR/docker/.env"
+        echo -e "${GREEN}  ✅ SSH credentials restored${NC}"
+    fi
+
+    # Rebuild & restart
+    echo -e "${YELLOW}  Rebuilding Docker image...${NC}"
+    if docker compose -f "$SCRIPT_DIR/docker/docker-compose.yml" build --quiet 2>&1; then
+        echo -e "${GREEN}  ✅ Image rebuilt${NC}"
+    else
+        docker compose -f "$SCRIPT_DIR/docker/docker-compose.yml" build
+    fi
+
+    echo -e "${YELLOW}  Restarting container...${NC}"
+    docker compose -f "$SCRIPT_DIR/docker/docker-compose.yml" up -d --quiet 2>&1
+    echo -e "${GREEN}  ✅ Container restarted${NC}"
+
+    echo ""
+    echo -e "${GREEN}  ✅ Docker update complete!${NC}"
+}
+
 # ─── Update — Native Mode ───────────────────────────────────────────────────────
 do_update_native() {
     echo -e "${CYAN}  🔄 Updating Batocera WebDashboard PRO (Native Mode)...${NC}"
@@ -766,6 +924,8 @@ cmd_update() {
 
     if [ "$os" = "batocera" ] || [ "$MODE" = "native" ]; then
         do_update_native
+    elif [ "$MODE" = "docker" ]; then
+        do_update_docker
     else
         do_update_remote
     fi
@@ -872,6 +1032,13 @@ uninstall_remote() {
     local keep_config=${1:-false}
     echo -e "${RED}  ── Remote Mode Uninstall ────────────────────────────────────────${NC}"
     echo ""
+
+    # Check if Docker container exists
+    if docker container inspect batocera-dashboard &>/dev/null; then
+        echo -e "${CYAN}  Docker container detected. Use 'docker compose -f docker/docker-compose.yml down' to remove.${NC}"
+        echo "  Or run: docker rm -f batocera-dashboard"
+        echo ""
+    fi
 
     if [ "$UNATTENDED" = false ]; then
         read -rp "  This will stop the server and remove the venv. Continue? [y/N]: " confirm
@@ -980,6 +1147,19 @@ cmd_status() {
     local proc_status="❌ Not running"
     [ -n "$pid" ] && proc_status="✅ Running (PID $pid)"
 
+    # Docker check
+    local docker_status="n/a"
+    local docker_pid=""
+    if command -v docker &>/dev/null && docker container inspect batocera-dashboard &>/dev/null 2>&1; then
+        docker_pid=$(docker container inspect --format '{{.State.Pid}}' batocera-dashboard 2>/dev/null || echo "")
+        local docker_up=$(docker container inspect --format '{{.State.Running}}' batocera-dashboard 2>/dev/null || echo "false")
+        if [ "$docker_up" = "true" ]; then
+            docker_status="✅ Container running (PID $docker_pid)"
+        else
+            docker_status="⚠️  Container exists but not running"
+        fi
+    fi
+
     # URL
     local url="http://localhost:${port}"
     [ "$mode" = "NATIVE" ] && url="http://batocera.local:${port}"
@@ -1006,6 +1186,7 @@ cmd_status() {
     printf  "  %-12s %s\n" "Version:"  "$version"
     printf  "  %-12s %s\n" "Port:"     "$port"
     printf  "  %-12s %s\n" "Process:"  "$proc_status"
+    printf  "  %-12s %s\n" "Docker:"   "$docker_status"
     printf  "  %-12s %s\n" "URL:"      "$url"
     printf  "  %-12s %s\n" "Config:"   "$config_status"
     printf  "  %-12s %s\n" "Update:"   "$update_info"
@@ -1052,9 +1233,10 @@ main() {
     # Run mode-specific install
     case "$MODE" in
         native) install_native ;;
+        docker) install_docker ;;
         remote) install_remote ;;
         *)
-            echo -e "${RED}  Error: Unknown mode '$MODE'. Use 'remote' or 'native'.${NC}"
+            echo -e "${RED}  Error: Unknown mode '$MODE'. Use 'remote', 'native', or 'docker'.${NC}"
             exit 1
             ;;
     esac
