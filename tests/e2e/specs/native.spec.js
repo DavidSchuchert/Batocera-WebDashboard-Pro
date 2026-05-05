@@ -28,4 +28,18 @@ test.describe('Native Dashboard', () => {
     await page.waitForSelector('#stat-cpu', { timeout: 10_000 });
     await expect(page.locator('#stat-cpu')).not.toHaveText('—', { timeout: 8_000 });
   });
+
+  test('file upload controls are wired', async ({ page }) => {
+    await page.goto('/');
+    await page.click('[data-view="files"]');
+    await page.waitForSelector('#file-upload-input', { state: 'attached', timeout: 10_000 });
+
+    const uploadFunctions = await page.evaluate(() => ({
+      uploadFile: typeof window.uploadFile,
+      performUpload: typeof window.performUpload,
+    }));
+
+    expect(uploadFunctions.uploadFile).toBe('function');
+    expect(uploadFunctions.performUpload).toBe('function');
+  });
 });

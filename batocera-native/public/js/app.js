@@ -213,6 +213,32 @@ async function loadFiles(dir) {
   } catch (err) { el.innerHTML = '<div class="loading">Error loading directory</div>'; toast(`Access denied: ${err.message}`, true); }
 }
 
+function uploadFile() {
+  const input = document.getElementById('file-upload-input');
+  if (input) input.click();
+}
+
+async function performUpload() {
+  const input = document.getElementById('file-upload-input');
+  if (!input || !input.files.length) return;
+
+  const file = input.files[0];
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('dir', state.currentPath);
+
+  toast(`Uploading ${file.name}...`);
+  try {
+    const response = await fetch('/api/files/upload', { method: 'POST', body: formData });
+    if (!response.ok) throw new Error(await response.text());
+    toast('Upload successful!');
+    loadFiles(state.currentPath);
+  } catch (e) {
+    toast('Upload failed: ' + e.message, true);
+  }
+  input.value = '';
+}
+
 async function checkHealth() {
   try { 
     const data = await fetchJSON('/health'); 
