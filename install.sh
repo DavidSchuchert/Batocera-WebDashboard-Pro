@@ -387,22 +387,25 @@ install_docker() {
             exit 1
         fi
     else
+        # Always ask — pre-fill with existing values from .env if present
         if [ -f "$SCRIPT_DIR/docker/.env" ]; then
-            echo -e "${YELLOW}  Existing docker/.env found. Using it.${NC}"
+            echo -e "${YELLOW}  Existing docker/.env found — using as defaults.${NC}"
             # shellcheck disable=SC1090
             source "$SCRIPT_DIR/docker/.env" 2>/dev/null || true
-        else
-            local default_host="${BATOCERA_HOST:-batocera.local}"
-            read -rp "  Enter Batocera IP or hostname [$default_host]: " input_host
-            BATOCERA_HOST="${input_host:-$default_host}"
-            read -rp "  Enter Batocera username [root]: " input_user
-            BATOCERA_USER="${input_user:-root}"
-            read -rsp "  Enter Batocera password [linux]: " input_pass
-            echo ""
-            BATOCERA_PASS="${input_pass:-linux}"
-            read -rp "  Enter web server port [${PORT:-8080}]: " input_port
-            [ -n "$input_port" ] && PORT="$input_port"
         fi
+
+        local default_host="${BATOCERA_HOST:-batocera.local}"
+        local default_user="${BATOCERA_USER:-root}"
+        local default_pass="${BATOCERA_PASS:-linux}"
+        read -rp "  Enter Batocera IP or hostname [$default_host]: " input_host
+        BATOCERA_HOST="${input_host:-$default_host}"
+        read -rp "  Enter Batocera username [$default_user]: " input_user
+        BATOCERA_USER="${input_user:-$default_user}"
+        read -rsp "  Enter Batocera password [$default_pass]: " input_pass
+        echo ""
+        BATOCERA_PASS="${input_pass:-$default_pass}"
+        read -rp "  Enter web server port [${PORT:-8080}]: " input_port
+        [ -n "$input_port" ] && PORT="$input_port"
     fi
 
     # 3. Write docker/.env
