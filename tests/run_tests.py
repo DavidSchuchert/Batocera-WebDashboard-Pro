@@ -87,6 +87,45 @@ def post(url: str, payload: dict, timeout: int = 5) -> tuple[Optional[dict], int
         return None, 0
 
 
+def post_multipart_file(url: str, field_name: str, filename: str, content: bytes, fields: dict,
+                        timeout: int = 5) -> tuple[Optional[dict], int]:
+    boundary = f"----batocera-test-{int(time.time() * 1000)}"
+    body = bytearray()
+
+    for key, value in fields.items():
+        body.extend(f"--{boundary}\r\n".encode())
+        body.extend(f'Content-Disposition: form-data; name="{key}"\r\n\r\n'.encode())
+        body.extend(str(value).encode())
+        body.extend(b"\r\n")
+
+    body.extend(f"--{boundary}\r\n".encode())
+    body.extend(
+        f'Content-Disposition: form-data; name="{field_name}"; filename="{filename}"\r\n'
+        "Content-Type: application/octet-stream\r\n\r\n"
+        .encode()
+    )
+    body.extend(content)
+    body.extend(b"\r\n")
+    body.extend(f"--{boundary}--\r\n".encode())
+
+    req = urllib.request.Request(
+        url,
+        data=bytes(body),
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read()), r.status
+    except urllib.error.HTTPError as e:
+        try:
+            return json.loads(e.read()), e.code
+        except Exception:
+            return None, e.code
+    except Exception:
+        return None, 0
+
+
 def wait_for_service(url: str, label: str, timeout: int = 60) -> bool:
     print(f"  Waiting for {label}...", end="", flush=True)
     deadline = time.time() + timeout
@@ -421,6 +460,36 @@ def test_native():
                 f"dev={roms[0].get('dev')}")
             run(f"{sys_name.upper()} has description",
                 len(roms[0].get("desc", "")) > 0)
+
+    upload_name = f"native-upload-test-{int(time.time())}.txt"
+    upload_body = b"native upload ok\n"
+    upload_data, upload_code = post_multipart_file(
+        f"{NATIVE_BASE}/api/files/upload",
+        "file",
+        upload_name,
+        upload_body,
+        {"dir": "/userdata/system"},
+    )
+    run("Native file upload returns 200", upload_code == 200, f"got HTTP {upload_code}: {upload_data}")
+
+    files_data, files_code = get(f"{NATIVE_BASE}/api/files/list?dir=/userdata/system")
+    files = (files_data or {}).get("files", [])
+    run("Native uploaded file appears in listing",
+        files_code == 200 and any(f.get("name") == upload_name for f in files),
+        f"got HTTP {files_code}, files={[f.get('name') for f in files]}")
+
+    blocked_data, blocked_code = post_multipart_file(
+        f"{NATIVE_BASE}/api/files/upload",
+        "file",
+        "blocked.txt",
+        b"blocked\n",
+        {"dir": "/etc"},
+    )
+    run("Native upload outside /userdata is blocked",
+        blocked_code == 400,
+        f"got HTTP {blocked_code}: {blocked_data}")
+
+    post(f"{NATIVE_BASE}/api/files/delete", {"path": f"/userdata/system/{upload_name}"})
 
 
 # ── SSH Mock ──────────────────────────────────────────────────────────────────

@@ -15,9 +15,14 @@
   <img src="https://img.shields.io/badge/style-NES.css-red.svg" alt="NES.css">
   <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License">
   <img src="https://img.shields.io/github/v/release/DavidSchuchert/Batocera-WebDashboard-Pro" alt="Latest Release">
-  <img src="https://img.shields.io/badge/New-v2.0.1-brightgreen.svg" alt="New v2.0.1">
+  <img src="https://img.shields.io/badge/New-v2.0.2-brightgreen.svg" alt="New v2.0.2">
   <img src="https://img.shields.io/badge/Docker-available-2496ED.svg" alt="Docker available">
 </p>
+
+> **New in v2.0.2:** Docker setup/update flow is refreshed, and Native mode
+> uploads are fixed. Docker now uses the hardened installer/update path, while
+> the Native dashboard opens the file picker correctly, uploads into
+> `/userdata`, and blocks upload paths outside `/userdata`.
 
 ---
 
@@ -191,7 +196,7 @@ docker exec -it batocera-dashboard /bin/bash                                    
 
 ## Testing
 
-The project has a full test suite covering API behavior, Docker config, and 22 Playwright E2E browser tests.
+The project has a full test suite covering API behavior, Docker config, and 23 Playwright E2E browser tests.
 
 ```bash
 # Start test environment

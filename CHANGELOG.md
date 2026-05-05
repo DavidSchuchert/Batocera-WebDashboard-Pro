@@ -6,6 +6,20 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [2.0.2] — 2026-05-05
+
+### Fixed
+
+- Native dashboard file uploads now work: `uploadFile()` opens the file picker
+  and `performUpload()` posts the selected file to the native upload endpoint.
+- Native upload endpoint now validates uploads stay under `/userdata`.
+
+### Added
+
+- API and Playwright regression tests for Native upload wiring.
+
+---
+
 ## [2.0.1] — 2026-05-05
 
 ### Fixed
@@ -62,7 +76,7 @@ CI/CD, and a unified installer.
   fake batocera-* commands)
 - `tests/run_tests.py` — 82 automated API tests covering health,
   systems, ROM library, file browser, terminal, logs, security
-- `tests/e2e/` — 22 Playwright browser tests across Remote, Native,
+- `tests/e2e/` — 23 Playwright browser tests across Remote, Native,
   and Mobile viewports
 - `docker-compose.test.yml` orchestrates mock + remote + native dashboards
   on ports 2299, 8091, 8092

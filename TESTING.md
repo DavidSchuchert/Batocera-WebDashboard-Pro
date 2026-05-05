@@ -156,7 +156,7 @@ Remote Mode (http://localhost:8091)
   [PASS] ROM developer not 'Unknown' — dev=Nintendo
   ...
 
-Results: 98/98 passed  All tests passed!
+Results: 101/101 passed  All tests passed!
 ```
 
 ---

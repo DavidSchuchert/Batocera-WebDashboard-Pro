@@ -14,6 +14,7 @@ def _read_version():
         return "0.0.0"
 
 VERSION = _read_version()
+SAFE_BASE = '/userdata'
 
 def _version_tuple(value):
     parts = str(value).lstrip('v').split('.')
@@ -24,6 +25,14 @@ def _version_tuple(value):
     while len(nums) < 3:
         nums.append(0)
     return tuple(nums)
+
+def _safe_path(path):
+    if not path:
+        return None
+    normalised = os.path.normpath('/' + path.lstrip('/'))
+    if normalised == SAFE_BASE or normalised.startswith(SAFE_BASE + '/'):
+        return normalised
+    return None
 
 # Helper for local command execution
 def local_exec(cmd):
@@ -241,9 +250,26 @@ def files_delete():
 
 @app.route('/api/files/upload', methods=['POST'])
 def files_upload():
-    d, f = request.form.get('dir'), request.files.get('file')
-    f.save(os.path.join(d, f.filename))
-    return jsonify({'ok': True})
+    d = _safe_path(request.form.get('dir', ''))
+    f = request.files.get('file')
+    if not d:
+        return jsonify({'error': 'Invalid or missing dir'}), 400
+    if not f:
+        return jsonify({'error': 'Missing file'}), 400
+
+    filename = os.path.basename(f.filename or '')
+    if not filename:
+        return jsonify({'error': 'Invalid filename'}), 400
+
+    target = os.path.normpath(os.path.join(d, filename))
+    if not (target == d or target.startswith(d.rstrip('/') + '/')):
+        return jsonify({'error': 'Invalid target path'}), 400
+
+    try:
+        f.save(target)
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/files/download')
 def files_download():
