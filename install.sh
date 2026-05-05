@@ -400,6 +400,8 @@ install_docker() {
             read -rsp "  Enter Batocera password [linux]: " input_pass
             echo ""
             BATOCERA_PASS="${input_pass:-linux}"
+            read -rp "  Enter web server port [${PORT:-8080}]: " input_port
+            [ -n "$input_port" ] && PORT="$input_port"
         fi
     fi
 
@@ -452,7 +454,7 @@ EOF
     echo    "  ║  Logs:          docker logs batocera-dashboard                   ║"
     echo    "  ║  Shell:          docker exec -it batocera-dashboard /bin/bash  ║"
     echo    "  ║                                                                ║"
-    echo -e "  ║  URL:           http://localhost:8080                          ║"
+    echo -e "  ║  URL:           http://localhost:${PORT:-8080}                          ║"
     echo -e "  ╚══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 }
