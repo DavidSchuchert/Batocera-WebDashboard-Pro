@@ -169,7 +169,7 @@ show_mode_explanation() {
     echo -e "  ╚══════════════════════════════════════════════════════════════╝"
     echo ""
     echo -e "  ╔══════════════════════════════════════════════════════════════╗"
-    echo    "  ║           🐳 DOCKER MODE (Remote + Docker)                  ║"
+    echo    "  ║           🐳 DOCKER MODE (Remote only)                    ║"
     echo    "  ║                                                                ║"
     echo    "  ║  • Dashboard runs in a Docker container on your Mac/PC/Server ║"
     echo    "  ║  • Connects via SSH to your Batocera                          ║"

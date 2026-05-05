@@ -27,8 +27,9 @@ Batocera Web Dashboard PRO is a browser-based control panel you can run **alongs
 
 | Mode | Where it runs | Best for |
 |------|--------------|----------|
-| 🌐 **Remote** | Your Mac/PC/server | Managing Batocera from another machine via SSH |
-| 🎮 **Native** | Directly on Batocera | Always-on access, auto-starts with the console |
+| 🌐 **Remote** | Your Mac/PC/server via SSH | Managing Batocera from another machine |
+| 🌐 **Remote (Docker)** | Docker container on Mac/PC/server | Same as Remote, but no Python needed |
+| 🎮 **Native** | Directly on Batocera | Always-on, auto-starts with the console |
 
 ---
 
@@ -117,11 +118,40 @@ export PORT=8989
 ```
 
 ### After install
-
 | Mode | URL |
 |------|-----|
 | Remote | `http://localhost:8989` |
+| Remote (Docker) | `http://localhost:8080` |
 | Native | `http://batocera.local:8989` |
+
+### Docker setup (Remote only)
+
+Docker runs the Remote mode in a container — no Python or dependency installation needed on your machine.
+
+```bash
+# 1. Clone & enter
+git clone https://github.com/DavidSchuchert/Batocera-WebDashboard-Pro.git
+cd Batocera-WebDashboard-Pro
+
+# 2. Create config
+cp docker/.env.example docker/.env
+# Edit docker/.env and set BATOCERA_HOST, BATOCERA_USER, BATOCERA_PASS
+
+# 3. Start
+docker compose -f docker/docker-compose.yml up -d
+
+# → http://localhost:8080
+```
+
+Or use the installer: `./install.sh` → choose option [3] 🐳 Docker.
+
+**Docker commands:**
+```bash
+docker compose -f docker/docker-compose.yml up -d      # start
+docker compose -f docker/docker-compose.yml down        # stop
+docker logs batocera-dashboard                         # view logs
+docker exec -it batocera-dashboard /bin/bash           # shell inside
+```
 
 ---
 
