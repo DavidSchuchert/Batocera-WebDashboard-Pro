@@ -42,7 +42,7 @@ Batocera-WebDashboard-Pro/
 │           └── nes/gamelist.xml
 │
 ├── docker-compose.test.yml      # Test-Umgebung (alle 3 Container)
-├── docker-compose.yml           # Produktion (nur Remote-Modus)
+├── docker/docker-compose.yml    # Produktion (nur Remote-Modus)
 └── TESTING.md                   # Diese Datei
 ```
 
@@ -138,6 +138,7 @@ python3 tests/run_tests.py --native-only
 | Logs | EmulationStation-Log lesbar |
 | Batocera-Version | `batocera-linux 40 (20240101)` |
 | Settings | Host/User-Felder vorhanden |
+| Docker-Installer | Compose-Env, Port-Mapping und Healthcheck korrekt |
 | Native Health | Mode = "native" |
 | Native ROMs | Metadaten aus gamelist.xml korrekt |
 | SSH-Mock | Port 2299 erreichbar, Filesystem sichtbar |
@@ -155,7 +156,7 @@ Remote Mode (http://localhost:8091)
   [PASS] ROM developer not 'Unknown' — dev=Nintendo
   ...
 
-Results: 34/34 passed  All tests passed!
+Results: 98/98 passed  All tests passed!
 ```
 
 ---
@@ -221,6 +222,12 @@ Results: 34/34 passed  All tests passed!
 | `PORT` | `8080` | Web-Server-Port |
 
 Für die Test-Umgebung sind diese bereits in `docker-compose.test.yml` gesetzt (`BATOCERA_HOST=batocera-mock`).
+
+Für die Produktions-Docker-Variante nutzt der Installer `docker/.env` explizit:
+
+```bash
+docker compose --env-file docker/.env --project-directory docker -f docker/docker-compose.yml up -d
+```
 
 ---
 

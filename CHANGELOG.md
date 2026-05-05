@@ -6,6 +6,27 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [2.0.1] — 2026-05-05
+
+### Fixed
+
+- Docker installer now uses `docker/.env` explicitly for Compose interpolation,
+  keeps Docker's default web port at `8080`, and waits on the selected host port.
+- Docker healthcheck no longer depends on `curl`, which is not present in the
+  slim Python runtime image.
+- Native Docker image now includes `version.txt`, so update checks report the
+  real dashboard version instead of falling back to `0.0.0`.
+- `./install.sh --update` now auto-detects Docker installations before routing
+  to the Docker rebuild/restart path.
+- Update checks now compare version direction instead of treating every version
+  mismatch as an available update.
+
+### Added
+
+- Regression tests for Docker installer and Compose configuration rendering.
+
+---
+
 ## [2.0.0] — 2026-05-02
 
 A major release focused on stability, security, and ease of use.

@@ -5,6 +5,7 @@ WORKDIR /app
 RUN pip install --no-cache-dir flask
 
 COPY server.py .
+COPY version.txt .
 COPY public/ public/
 
 # Fake Batocera-Filesystem für Tests

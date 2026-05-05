@@ -12,8 +12,10 @@ Usage:
 
 import argparse
 import json
+import os
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 import urllib.error
@@ -123,6 +125,102 @@ def stop_stack():
 
 def section(title: str):
     print(f"\n{BOLD}{title}{RESET}")
+
+
+# ── Docker Installer / Compose Config ─────────────────────────────────────────
+
+def test_docker_installer_config():
+    section("Docker — Installer & Compose Config")
+
+    compose_env_path = os.path.join("docker", ".env")
+    created_compose_env = False
+
+    with tempfile.NamedTemporaryFile("w", delete=False) as env_file:
+        env_file.write(
+            "PORT=18080\n"
+            "BATOCERA_HOST=test-batocera\n"
+            "BATOCERA_PORT=2222\n"
+            "BATOCERA_USER=root\n"
+            "BATOCERA_PASS=dummy-pass\n"
+        )
+        env_path = env_file.name
+
+    try:
+        if not os.path.exists(compose_env_path):
+            with open(compose_env_path, "w", encoding="utf-8") as f:
+                f.write(
+                    "PORT=18080\n"
+                    "BATOCERA_HOST=test-batocera\n"
+                    "BATOCERA_PORT=2222\n"
+                    "BATOCERA_USER=root\n"
+                    "BATOCERA_PASS=dummy-pass\n"
+                )
+            created_compose_env = True
+
+        result = subprocess.run(
+            [
+                "docker", "compose",
+                "--env-file", env_path,
+                "--project-directory", "docker",
+                "-f", "docker/docker-compose.yml",
+                "config", "--format", "json", "--no-env-resolution",
+            ],
+            capture_output=True, text=True, timeout=20,
+        )
+        run("Docker compose config renders", result.returncode == 0, result.stderr.strip())
+
+        config = {}
+        if result.returncode == 0:
+            try:
+                config = json.loads(result.stdout)
+            except Exception as e:
+                run("Docker compose config is JSON", False, str(e))
+        else:
+            run("Docker compose config is JSON", False, "config command failed")
+
+        dashboard = (config.get("services") or {}).get("dashboard") or {}
+        run("Dashboard service exists", bool(dashboard))
+
+        ports = dashboard.get("ports") or []
+        published = str(ports[0].get("published", "")) if ports else ""
+        target = str(ports[0].get("target", "")) if ports else ""
+        run("Host port comes from env file", published == "18080", f"published={published}")
+        run("Container still listens on 8080", target == "8080", f"target={target}")
+
+        environment = dashboard.get("environment") or {}
+        run("BATOCERA_HOST comes from env file",
+            environment.get("BATOCERA_HOST") == "test-batocera",
+            f"host={environment.get('BATOCERA_HOST')}")
+
+        health_test = " ".join(dashboard.get("healthcheck", {}).get("test", []))
+        run("Healthcheck uses Python urllib", "python" in health_test and "urllib.request" in health_test)
+        run("Healthcheck does not require curl", "curl" not in health_test)
+    finally:
+        try:
+            os.unlink(env_path)
+        except Exception:
+            pass
+        if created_compose_env:
+            try:
+                os.unlink(compose_env_path)
+            except Exception:
+                pass
+
+    with open("install.sh", encoding="utf-8") as f:
+        installer = f.read()
+
+    run("Docker installer default port is 8080", "DEFAULT_DOCKER_PORT=8080" in installer)
+    run("Docker installer passes --env-file to compose", "--env-file" in installer and "docker/.env" in installer)
+    run("Docker installer pins compose project directory", "--project-directory" in installer)
+    run("Docker installer waits on selected web port",
+        '"http://localhost:${web_port}/health"' in installer)
+    run("Installer has command-mode detection", "detect_install_mode_for_command()" in installer)
+    run("Update command auto-detects Docker mode",
+        "install_mode=$(detect_install_mode_for_command)" in installer and "docker) do_update_docker" in installer)
+    run("Status treats Docker as Docker-managed",
+        'mode="DOCKER"' in installer and 'proc_status="n/a (Docker-managed)"' in installer)
+    run("Installer compares version direction",
+        "version_gt()" in installer and 'elif version_gt "$remote" "$current"' in installer)
 
 
 # ── Remote Mode ───────────────────────────────────────────────────────────────
@@ -301,6 +399,11 @@ def test_native():
     run("Health returns 200", code == 200)
     run("Mode is 'native'", (data or {}).get("mode") == "native", f"got: {data}")
     run("Status is 'ok'", (data or {}).get("status") == "ok")
+    with open("batocera-native/version.txt", encoding="utf-8") as f:
+        expected_version = f.read().strip()
+    run("Native reports dashboard version",
+        (data or {}).get("version") == expected_version,
+        f"expected={expected_version}, got={(data or {}).get('version')}")
 
     data2, code2 = get(f"{NATIVE_BASE}/api/systems")
     run("Systems returns 200", code2 == 200)
@@ -394,6 +497,7 @@ def main():
             sys.exit(1)
 
     try:
+        test_docker_installer_config()
         if not args.native_only:
             test_remote_health()
             test_remote_systems()

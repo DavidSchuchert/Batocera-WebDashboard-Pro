@@ -15,6 +15,16 @@ def _read_version():
 
 VERSION = _read_version()
 
+def _version_tuple(value):
+    parts = str(value).lstrip('v').split('.')
+    nums = []
+    for part in parts[:3]:
+        match = re.match(r'(\d+)', part)
+        nums.append(int(match.group(1)) if match else 0)
+    while len(nums) < 3:
+        nums.append(0)
+    return tuple(nums)
+
 # Helper for local command execution
 def local_exec(cmd):
     try:
@@ -59,7 +69,7 @@ def api_update_check():
             return jsonify({
                 'current': VERSION,
                 'remote': remote_version,
-                'updateAvailable': remote_version != VERSION
+                'updateAvailable': _version_tuple(remote_version) > _version_tuple(VERSION)
             })
     except:
         return jsonify({'error': 'Could not check for updates'}), 500
