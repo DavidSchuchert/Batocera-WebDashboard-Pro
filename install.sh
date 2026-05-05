@@ -427,7 +427,7 @@ EOF
     echo -e "${YELLOW}  [4/4] Starting container...${NC}"
     # Remove old container if exists
     docker rm -f batocera-dashboard &>/dev/null || true
-    if ! docker compose -f "$SCRIPT_DIR/docker/docker-compose.yml" up -d --quiet 2>&1; then
+    if ! docker compose -f "$SCRIPT_DIR/docker/docker-compose.yml" up -d 2>&1; then
         echo -e "${RED}  Error: Could not start container.${NC}"
         exit 1
     fi
@@ -859,7 +859,7 @@ do_update_docker() {
     fi
 
     echo -e "${YELLOW}  Restarting container...${NC}"
-    docker compose -f "$SCRIPT_DIR/docker/docker-compose.yml" up -d --quiet 2>&1
+    docker compose -f "$SCRIPT_DIR/docker/docker-compose.yml" up -d 2>&1
     echo -e "${GREEN}  ✅ Container restarted${NC}"
 
     echo ""
