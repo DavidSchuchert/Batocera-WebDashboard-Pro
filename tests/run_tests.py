@@ -12,6 +12,7 @@ Usage:
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -131,6 +132,9 @@ def section(title: str):
 def test_docker_installer_config():
     section("Docker — Installer & Compose Config")
 
+    compose_env_path = os.path.join("docker", ".env")
+    created_compose_env = False
+
     with tempfile.NamedTemporaryFile("w", delete=False) as env_file:
         env_file.write(
             "PORT=18080\n"
@@ -142,6 +146,17 @@ def test_docker_installer_config():
         env_path = env_file.name
 
     try:
+        if not os.path.exists(compose_env_path):
+            with open(compose_env_path, "w", encoding="utf-8") as f:
+                f.write(
+                    "PORT=18080\n"
+                    "BATOCERA_HOST=test-batocera\n"
+                    "BATOCERA_PORT=2222\n"
+                    "BATOCERA_USER=root\n"
+                    "BATOCERA_PASS=dummy-pass\n"
+                )
+            created_compose_env = True
+
         result = subprocess.run(
             [
                 "docker", "compose",
@@ -182,10 +197,14 @@ def test_docker_installer_config():
         run("Healthcheck does not require curl", "curl" not in health_test)
     finally:
         try:
-            import os
             os.unlink(env_path)
         except Exception:
             pass
+        if created_compose_env:
+            try:
+                os.unlink(compose_env_path)
+            except Exception:
+                pass
 
     with open("install.sh", encoding="utf-8") as f:
         installer = f.read()
