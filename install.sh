@@ -215,7 +215,7 @@ select_mode() {
     echo ""
     echo "    [1] 🌐 REMOTE   — I run this on my Mac/PC (Python direct)"
     echo "    [2] 🎮 NATIVE   — I run this DIRECTLY on my Batocera"
-    echo "    [3] 🐳 DOCKER  — I run this in a Docker container"
+    echo "    [3] 🐳 DOCKER  — I run this on my Mac/PC (Docker)"
     echo ""
     read -rp "  Enter choice [1]: " choice
     choice="${choice:-1}"
