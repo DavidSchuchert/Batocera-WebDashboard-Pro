@@ -121,7 +121,7 @@ export PORT=8989
 | Mode | URL |
 |------|-----|
 | Remote | `http://localhost:8989` |
-| Remote (Docker) | `http://localhost:8080` (port via `.env` änderbar) |
+| Remote (Docker) | `http://localhost:8080` (port configurable via `.env`) |
 | Native | `http://batocera.local:8989` |
 
 ### Docker setup (Remote only)
