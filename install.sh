@@ -21,6 +21,7 @@ NC='\033[0m'
 # ─── Defaults ──────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEFAULT_PORT=8989
+DEFAULT_DOCKER_PORT=8080
 NATIVE_INSTALL_DIR="/userdata/system/interface-pro"
 NATIVE_CUSTOM_SH="/userdata/system/custom.sh"
 CONFIG_FILE=""
@@ -29,7 +30,10 @@ MODE=""       # remote | native — set by ENV or user input
 BATOCERA_HOST="${BATOCERA_HOST:-}"
 BATOCERA_USER="${BATOCERA_USER:-root}"
 BATOCERA_PASS="${BATOCERA_PASS:-linux}"
+PORT_SET_FROM_ENV=false
+[ -n "${PORT+x}" ] && PORT_SET_FROM_ENV=true
 PORT="${PORT:-$DEFAULT_PORT}"
+CONFIG_PORT_SET=false
 
 # ─── Parse flags ───────────────────────────────────────────────────────────────
 COMMAND="install"
@@ -55,6 +59,7 @@ done
 
 if [ -n "$CONFIG_FILE" ]; then
     if [ -f "$CONFIG_FILE" ]; then
+        grep -Eq '^[[:space:]]*PORT=' "$CONFIG_FILE" && CONFIG_PORT_SET=true
         # shellcheck disable=SC1090
         source "$CONFIG_FILE"
         BATOCERA_HOST="${HOST:-$BATOCERA_HOST}"
@@ -140,6 +145,95 @@ resolve_port() {
         fi
     else
         PORT="$requested_port"
+    fi
+}
+
+load_docker_env_defaults() {
+    local env_file="$SCRIPT_DIR/docker/.env"
+    [ -f "$env_file" ] || return
+
+    while IFS='=' read -r key value; do
+        key="${key#"${key%%[![:space:]]*}"}"
+        key="${key%"${key##*[![:space:]]}"}"
+        value="${value%$'\r'}"
+        value="${value#"${value%%[![:space:]]*}"}"
+        value="${value%"${value##*[![:space:]]}"}"
+        value="${value%\"}"
+        value="${value#\"}"
+        value="${value%\'}"
+        value="${value#\'}"
+
+        case "$key" in
+            BATOCERA_HOST) BATOCERA_HOST="$value" ;;
+            BATOCERA_PORT) BATOCERA_PORT="$value" ;;
+            BATOCERA_USER) BATOCERA_USER="$value" ;;
+            BATOCERA_PASS) BATOCERA_PASS="$value" ;;
+            PORT) PORT="$value" ;;
+        esac
+    done < "$env_file"
+}
+
+write_docker_env_line() {
+    local key=$1
+    local value=${2:-}
+    value=${value//$'\n'/}
+    value=${value//\\/\\\\}
+    value=${value//\"/\\\"}
+    printf '%s="%s"\n' "$key" "$value"
+}
+
+docker_compose() {
+    local args=(--project-directory "$SCRIPT_DIR/docker" -f "$SCRIPT_DIR/docker/docker-compose.yml")
+    if [ -f "$SCRIPT_DIR/docker/.env" ]; then
+        args=(--env-file "$SCRIPT_DIR/docker/.env" "${args[@]}")
+    fi
+    docker compose "${args[@]}" "$@"
+}
+
+docker_container_exists() {
+    command -v docker &>/dev/null && docker container inspect batocera-dashboard &>/dev/null
+}
+
+version_gt() {
+    local left="${1#v}"
+    local right="${2#v}"
+    local left_major left_minor left_patch right_major right_minor right_patch
+    IFS=. read -r left_major left_minor left_patch _ <<< "$left"
+    IFS=. read -r right_major right_minor right_patch _ <<< "$right"
+
+    left_major="${left_major%%[^0-9]*}"
+    left_minor="${left_minor%%[^0-9]*}"
+    left_patch="${left_patch%%[^0-9]*}"
+    right_major="${right_major%%[^0-9]*}"
+    right_minor="${right_minor%%[^0-9]*}"
+    right_patch="${right_patch%%[^0-9]*}"
+
+    left_major="${left_major:-0}"
+    left_minor="${left_minor:-0}"
+    left_patch="${left_patch:-0}"
+    right_major="${right_major:-0}"
+    right_minor="${right_minor:-0}"
+    right_patch="${right_patch:-0}"
+
+    [ "$left_major" -gt "$right_major" ] && return 0
+    [ "$left_major" -lt "$right_major" ] && return 1
+    [ "$left_minor" -gt "$right_minor" ] && return 0
+    [ "$left_minor" -lt "$right_minor" ] && return 1
+    [ "$left_patch" -gt "$right_patch" ]
+}
+
+detect_install_mode_for_command() {
+    local os
+    os=$(detect_os)
+
+    if [ -n "$MODE" ]; then
+        echo "$MODE"
+    elif [ "$os" = "batocera" ] || [ -d "$NATIVE_INSTALL_DIR" ]; then
+        echo "native"
+    elif docker_container_exists || [ -f "$SCRIPT_DIR/docker/.env" ]; then
+        echo "docker"
+    else
+        echo "remote"
     fi
 }
 
@@ -360,6 +454,10 @@ install_docker() {
     echo -e "${CYAN}  ── Docker Mode Setup ───────────────────────────────────────────${NC}"
     echo ""
 
+    if [ "$PORT_SET_FROM_ENV" = false ] && [ "$CONFIG_PORT_SET" = false ] && [ "$PORT" = "$DEFAULT_PORT" ]; then
+        PORT="$DEFAULT_DOCKER_PORT"
+    fi
+
     # 1. Check Docker
     echo -e "${YELLOW}  [1/4] Checking Docker...${NC}"
     if ! command -v docker &>/dev/null; then
@@ -390,8 +488,7 @@ install_docker() {
         # Always ask — pre-fill with existing values from .env if present
         if [ -f "$SCRIPT_DIR/docker/.env" ]; then
             echo -e "${YELLOW}  Existing docker/.env found — using as defaults.${NC}"
-            # shellcheck disable=SC1090
-            source "$SCRIPT_DIR/docker/.env" 2>/dev/null || true
+            load_docker_env_defaults
         fi
 
         local default_host="${BATOCERA_HOST:-batocera.local}"
@@ -404,27 +501,27 @@ install_docker() {
         read -rsp "  Enter Batocera password [$default_pass]: " input_pass
         echo ""
         BATOCERA_PASS="${input_pass:-$default_pass}"
-        read -rp "  Enter web server port [${PORT:-8080}]: " input_port
+        read -rp "  Enter web server port [${PORT:-$DEFAULT_DOCKER_PORT}]: " input_port
         [ -n "$input_port" ] && PORT="$input_port"
     fi
 
     # 3. Write docker/.env
     echo -e "${YELLOW}  [2/4] Writing docker/.env...${NC}"
-    cat > "$SCRIPT_DIR/docker/.env" <<EOF
-BATOCERA_HOST=${BATOCERA_HOST}
-BATOCERA_PORT=${BATOCERA_PORT:-22}
-BATOCERA_USER=${BATOCERA_USER:-root}
-BATOCERA_PASS=${BATOCERA_PASS}
-PORT=${PORT:-8080}
-MODE=remote
-EOF
+    {
+        write_docker_env_line "BATOCERA_HOST" "$BATOCERA_HOST"
+        write_docker_env_line "BATOCERA_PORT" "${BATOCERA_PORT:-22}"
+        write_docker_env_line "BATOCERA_USER" "${BATOCERA_USER:-root}"
+        write_docker_env_line "BATOCERA_PASS" "$BATOCERA_PASS"
+        write_docker_env_line "PORT" "${PORT:-$DEFAULT_DOCKER_PORT}"
+        write_docker_env_line "MODE" "remote"
+    } > "$SCRIPT_DIR/docker/.env"
     echo -e "${GREEN}  ✅ docker/.env created${NC}"
 
     # 4. Build & start
     echo -e "${YELLOW}  [3/4] Building Docker image...${NC}"
-    if ! docker compose -f "$SCRIPT_DIR/docker/docker-compose.yml" build --quiet 2>&1; then
+    if ! docker_compose build --quiet 2>&1; then
         echo -e "${RED}  Error: Docker build failed.${NC}"
-        docker compose -f "$SCRIPT_DIR/docker/docker-compose.yml" build
+        docker_compose build
         exit 1
     fi
     echo -e "${GREEN}  ✅ Image built${NC}"
@@ -432,7 +529,7 @@ EOF
     echo -e "${YELLOW}  [4/4] Starting container...${NC}"
     # Remove old container if exists
     docker rm -f batocera-dashboard &>/dev/null || true
-    if ! docker compose -f "$SCRIPT_DIR/docker/docker-compose.yml" up -d 2>&1; then
+    if ! docker_compose up -d 2>&1; then
         echo -e "${RED}  Error: Could not start container.${NC}"
         exit 1
     fi
@@ -441,23 +538,31 @@ EOF
     # Wait for health
     echo -e "${CYAN}  Waiting for dashboard to become healthy...${NC}"
     local retries=15
+    local healthy=false
+    local web_port="${PORT:-$DEFAULT_DOCKER_PORT}"
     while [ "$retries" -gt 0 ]; do
-        if curl -sf --max-time 2 http://localhost:8080/health &>/dev/null; then
+        if curl -sf --max-time 2 "http://localhost:${web_port}/health" &>/dev/null; then
+            healthy=true
             break
         fi
         retries=$((retries - 1))
         sleep 2
     done
 
+    if [ "$healthy" = false ]; then
+        echo -e "${YELLOW}  ⚠️  Container started, but http://localhost:${web_port}/health did not respond yet.${NC}"
+        echo -e "${YELLOW}     Check logs with: docker logs batocera-dashboard${NC}"
+    fi
+
     echo ""
     echo -e "${GREEN}  ╔══════════════════════════════════════════════════════════════╗"
     echo    "  ║  ✅ Docker installation complete!                           ║"
     echo    "  ║                                                                ║"
-    echo    "  ║  Start/Stop:    docker compose -f docker/docker-compose.yml up -d / down  ║"
+    echo    "  ║  Start/Stop:    docker compose --env-file docker/.env --project-directory docker -f docker/docker-compose.yml up -d / down  ║"
     echo    "  ║  Logs:          docker logs batocera-dashboard                   ║"
     echo    "  ║  Shell:          docker exec -it batocera-dashboard /bin/bash  ║"
     echo    "  ║                                                                ║"
-    echo -e "  ║  URL:           http://localhost:${PORT:-8080}                          ║"
+    echo -e "  ║  URL:           http://localhost:${web_port}                          ║"
     echo -e "  ╚══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 }
@@ -783,9 +888,12 @@ check_for_updates() {
     if [ "$current" = "$remote" ]; then
         echo -e "${GREEN}  ✅ Already on latest version: ${current}${NC}"
         return 0
-    else
+    elif version_gt "$remote" "$current"; then
         echo -e "${CYAN}  📦 Update available: ${current} → ${remote}${NC}"
         return 1
+    else
+        echo -e "${GREEN}  ✅ Local version ${current} is newer than published ${remote}${NC}"
+        return 0
     fi
 }
 
@@ -857,14 +965,14 @@ do_update_docker() {
 
     # Rebuild & restart
     echo -e "${YELLOW}  Rebuilding Docker image...${NC}"
-    if docker compose -f "$SCRIPT_DIR/docker/docker-compose.yml" build --quiet 2>&1; then
+    if docker_compose build --quiet 2>&1; then
         echo -e "${GREEN}  ✅ Image rebuilt${NC}"
     else
-        docker compose -f "$SCRIPT_DIR/docker/docker-compose.yml" build
+        docker_compose build
     fi
 
     echo -e "${YELLOW}  Restarting container...${NC}"
-    docker compose -f "$SCRIPT_DIR/docker/docker-compose.yml" up -d 2>&1
+    docker_compose up -d 2>&1
     echo -e "${GREEN}  ✅ Container restarted${NC}"
 
     echo ""
@@ -913,9 +1021,6 @@ do_update_native() {
 
 # ─── Update (detect mode & dispatch) ───────────────────────────────────────────
 cmd_update() {
-    local os
-    os=$(detect_os)
-
     set +e
     check_for_updates
     local update_status=$?
@@ -927,13 +1032,19 @@ cmd_update() {
         [[ "$force" =~ ^[Yy]$ ]] || exit 0
     fi
 
-    if [ "$os" = "batocera" ] || [ "$MODE" = "native" ]; then
-        do_update_native
-    elif [ "$MODE" = "docker" ]; then
-        do_update_docker
-    else
-        do_update_remote
-    fi
+    local install_mode
+    install_mode=$(detect_install_mode_for_command)
+    echo -e "${CYAN}  Detected update mode: ${install_mode}${NC}"
+
+    case "$install_mode" in
+        native) do_update_native ;;
+        docker) do_update_docker ;;
+        remote) do_update_remote ;;
+        *)
+            echo -e "${RED}  Error: Unknown mode '$install_mode'. Use BATOCERA_MODE=remote, native, or docker.${NC}"
+            exit 1
+            ;;
+    esac
 }
 
 # ─── Existing Install Detection & v1→v2 Migration ──────────────────────────────
@@ -1040,7 +1151,7 @@ uninstall_remote() {
 
     # Check if Docker container exists
     if docker container inspect batocera-dashboard &>/dev/null; then
-        echo -e "${CYAN}  Docker container detected. Use 'docker compose -f docker/docker-compose.yml down' to remove.${NC}"
+        echo -e "${CYAN}  Docker container detected. Use 'docker compose --env-file docker/.env --project-directory docker -f docker/docker-compose.yml down' to remove.${NC}"
         echo "  Or run: docker rm -f batocera-dashboard"
         echo ""
     fi
@@ -1119,43 +1230,52 @@ uninstall_native() {
 
 # ─── Status ────────────────────────────────────────────────────────────────────
 cmd_status() {
-    local os
-    os=$(detect_os)
-
     # Determine mode
+    local install_mode
+    install_mode=$(detect_install_mode_for_command)
     local mode="REMOTE"
     local install_dir="$SCRIPT_DIR"
-    if [ "$os" = "batocera" ] || [ -d "$NATIVE_INSTALL_DIR" ]; then
-        mode="NATIVE"
-        install_dir="$NATIVE_INSTALL_DIR"
-    fi
+    local config_env="$SCRIPT_DIR/.env"
+    local default_port="$DEFAULT_PORT"
+    case "$install_mode" in
+        native)
+            mode="NATIVE"
+            install_dir="$NATIVE_INSTALL_DIR"
+            config_env="$install_dir/.env"
+            ;;
+        docker)
+            mode="DOCKER"
+            config_env="$SCRIPT_DIR/docker/.env"
+            default_port="$DEFAULT_DOCKER_PORT"
+            ;;
+    esac
 
     # Version
     local version
     version=$(cat "$install_dir/version.txt" 2>/dev/null | tr -d '[:space:]' || echo "unknown")
 
     # Config check
-    local config_env="$install_dir/.env"
     local config_status="❌ .env missing"
     [ -f "$config_env" ] && config_status="✅ .env exists"
 
     # Port
     local port="unknown"
     if [ -f "$config_env" ]; then
-        port=$(grep "^PORT=" "$config_env" 2>/dev/null | cut -d= -f2 | tr -d '[:space:]' || echo "$DEFAULT_PORT")
+        port=$(grep "^PORT=" "$config_env" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '[:space:]' | sed "s/^['\"]//;s/['\"]$//" || echo "$default_port")
     fi
-    [ -z "$port" ] && port="$DEFAULT_PORT"
+    [ -z "$port" ] && port="$default_port"
 
     # Process check
     local pid
     pid=$(pgrep -f "server.py" 2>/dev/null | head -1 || echo "")
     local proc_status="❌ Not running"
     [ -n "$pid" ] && proc_status="✅ Running (PID $pid)"
+    [ "$mode" = "DOCKER" ] && proc_status="n/a (Docker-managed)"
 
     # Docker check
     local docker_status="n/a"
     local docker_pid=""
-    if command -v docker &>/dev/null && docker container inspect batocera-dashboard &>/dev/null 2>&1; then
+    if docker_container_exists; then
         docker_pid=$(docker container inspect --format '{{.State.Pid}}' batocera-dashboard 2>/dev/null || echo "")
         local docker_up=$(docker container inspect --format '{{.State.Running}}' batocera-dashboard 2>/dev/null || echo "false")
         if [ "$docker_up" = "true" ]; then
@@ -1178,8 +1298,10 @@ cmd_status() {
     if [ -n "$remote_ver" ]; then
         if [ "$version" = "$remote_ver" ]; then
             update_info="✅ Up to date"
-        else
+        elif version_gt "$remote_ver" "$version"; then
             update_info="📦 Update available → ${remote_ver}"
+        else
+            update_info="✅ Local version newer than published"
         fi
     fi
 
@@ -1199,6 +1321,11 @@ cmd_status() {
     echo ""
 
     # Exit non-zero if not running
+    if [ "$mode" = "DOCKER" ]; then
+        docker_container_exists || return 1
+        [ "$(docker container inspect --format '{{.State.Running}}' batocera-dashboard 2>/dev/null || echo false)" = "true" ] || return 1
+        return 0
+    fi
     [ -z "$pid" ] && return 1
     return 0
 }

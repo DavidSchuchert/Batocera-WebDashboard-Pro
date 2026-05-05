@@ -15,6 +15,8 @@
   <img src="https://img.shields.io/badge/style-NES.css-red.svg" alt="NES.css">
   <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License">
   <img src="https://img.shields.io/github/v/release/DavidSchuchert/Batocera-WebDashboard-Pro" alt="Latest Release">
+  <img src="https://img.shields.io/badge/New-v2.0.1-brightgreen.svg" alt="New v2.0.1">
+  <img src="https://img.shields.io/badge/Docker-available-2496ED.svg" alt="Docker available">
 </p>
 
 ---
@@ -106,6 +108,37 @@ The installer **auto-detects your OS** (Batocera, macOS, Linux, WSL, Git Bash) a
 ./install.sh --unattended   # Non-interactive via ENV vars
 ```
 
+### Updating
+
+Updates are handled by the same installer. It checks `version.txt` on GitHub,
+preserves your local config, pulls the latest code, and restarts/rebuilds what
+is needed for your install mode.
+
+```bash
+# Remote, Native, or Docker installs
+./install.sh --update
+
+# Check current version and whether an update is available
+./install.sh --status
+```
+
+For Docker installs, the updater automatically detects `batocera-dashboard` or
+`docker/.env`, then rebuilds and restarts the container. If you ever need to
+force the mode explicitly:
+
+```bash
+BATOCERA_MODE=docker ./install.sh --update
+BATOCERA_MODE=remote ./install.sh --update
+BATOCERA_MODE=native ./install.sh --update
+```
+
+On Windows, run the same commands through `install.bat`, for example:
+
+```bat
+install.bat --update
+install.bat --status
+```
+
 ### Unattended / headless
 
 ```bash
@@ -139,7 +172,7 @@ cp docker/.env.example docker/.env
 # Optional: change PORT (default: 8080)
 
 # 3. Start
-docker compose -f docker/docker-compose.yml up -d
+docker compose --env-file docker/.env --project-directory docker -f docker/docker-compose.yml up -d
 
 # → http://localhost:8080
 ```
@@ -148,17 +181,17 @@ Or use the installer: `./install.sh` → choose option [3] 🐳 Docker.
 
 **Docker commands:**
 ```bash
-docker compose -f docker/docker-compose.yml up -d      # start
-docker compose -f docker/docker-compose.yml down        # stop
-docker logs batocera-dashboard                         # view logs
-docker exec -it batocera-dashboard /bin/bash           # shell inside
+docker compose --env-file docker/.env --project-directory docker -f docker/docker-compose.yml up -d   # start
+docker compose --env-file docker/.env --project-directory docker -f docker/docker-compose.yml down     # stop
+docker logs batocera-dashboard                                                              # view logs
+docker exec -it batocera-dashboard /bin/bash                                                # shell inside
 ```
 
 ---
 
 ## Testing
 
-The project has a full test suite: 82 API tests + 22 Playwright E2E browser tests.
+The project has a full test suite covering API behavior, Docker config, and 22 Playwright E2E browser tests.
 
 ```bash
 # Start test environment
