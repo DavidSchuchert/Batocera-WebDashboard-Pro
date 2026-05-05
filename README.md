@@ -19,9 +19,10 @@
   <img src="https://img.shields.io/badge/Docker-available-2496ED.svg" alt="Docker available">
 </p>
 
-> **New in v2.0.2:** Native mode uploads are fixed. The Native dashboard now opens
-> the file picker correctly, uploads files into `/userdata`, and blocks upload
-> paths outside `/userdata`.
+> **New in v2.0.2:** Docker setup/update flow is refreshed, and Native mode
+> uploads are fixed. Docker now uses the hardened installer/update path, while
+> the Native dashboard opens the file picker correctly, uploads into
+> `/userdata`, and blocks upload paths outside `/userdata`.
 
 ---
 
